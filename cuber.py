@@ -1,5 +1,6 @@
 import logging
 import traceback
+from time import perf_counter
 
 import adsk.fusion, adsk.core
 
@@ -13,7 +14,14 @@ class DirectCube:
         color=None,
         material=None,
         base_feature=None,
+        name="Cube",
     ):
+        app = adsk.core.Application.get()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
+            raise RuntimeError(
+                "A Instance of a DirectCube can not be created in parameteric design environment."
+            )
 
         # these are the attributes which cant be changed after initialization
         self._comp = component
@@ -41,22 +49,27 @@ class DirectCube:
 
         # these are the attributes that can be manipulated after creation
         # therefore the setter functions are used to set them
-        self._material = None
-        self.material = self._body.appearance.name if material is None else material
+        self._material = self._body.appearance.name if material is None else material
+        self._color = color
+        self._name = name
 
-        self._color = None
-        self.color = color
+        self.material = self._material
+        self.color = self._color
+        self.name = self._name
 
     def _get_appearance(self):
         app = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(app.activeProduct)
 
-        if self._color is not None:
-            return design.appearances.itemByName(self._material)
+        base_appearance = app.materialLibraries.itemByName(
+            "Fusion 360 Appearance Library"
+        ).appearances.itemByName(self._material)
 
-        r, g, b, o = self._color
+        if self._color is None:
+            return base_appearance
 
         # create the name of the colored appearance
+        r, g, b, o = self._color
         custom_color_suffix = "__custom_"
         colored_appearance_name = (
             f"{self._material}{custom_color_suffix}r{r}g{g}b{b}o{o}"
@@ -66,9 +79,7 @@ class DirectCube:
         colored_appearance = design.appearances.itemByName(colored_appearance_name)
         if colored_appearance is None:
             colored_appearance = design.appearances.addByCopy(
-                app.materialLibraries.itemByName(
-                    "Fusion 360 Appearance Library"
-                ).appearances.itemByName(self._material),
+                base_appearance,
                 colored_appearance_name,
             )
             colored_appearance.appearanceProperties.itemByName(
@@ -97,6 +108,15 @@ class DirectCube:
     def color(self):
         return self._color
 
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        self._name = new_name
+        self._body.name = new_name
+
     @color.setter
     def color(self, new_color):
         self._color = new_color
@@ -115,47 +135,22 @@ class DirectCube:
         self._body.deleteMe()
 
 
-def run(context):
-    ui = None
-    try:
-        app = adsk.core.Application.get()
-        design = adsk.fusion.Design.cast(app.activeProduct)
-        root = design.rootComponent
+class VoxelWorld:
+    def __init__(self, grid_size, component):
+        # limitations and conditions:
+        #       voxels have cubic and constnt size
+        #       a world existst in exctly one component
+        #       only one body per voxel at same time
+        #       
 
-        comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+        # self._bodies = {(x, y, z): Block}  # x,y,z in game/grid/voxel coordinates
 
-        cube = DirectCube(comp, (0, 0, 0), 1)
+    def add_cube(self, coordinates, coloe, material, name):
+        pass
 
-    except:
-        if ui:
-            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+    def remove_voxel(self):
+        pass
 
-
-def stop(context):
-    ui = None
-    try:
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-
-    except:
-        if ui:
-            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
-
-
-# begin region
-# class Sphere:
-#     def __init__(self, component, center, diameter, color, material, build_type):
-#         pass
-
-#     def delete(self):
-#         pass
-
-
-# class VoxelWorld:
-#     def __init__(self, grid_size, component):
-#         super().__init__()
-
-#         self._bodies = {(x, y, z): Block}  # x,y,z in game/grid/voxel coordinates
 
 #     def add_shape(self, shape_class, position, material, color):
 #         body = self._bodies.get(position)
@@ -186,6 +181,51 @@ def stop(context):
 #                 self._elements[pos].delete()
 #                 self._elements.pop(pos)
 #             # if pos in self._bodies:
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        root = design.rootComponent
+
+        comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+
+        times = []
+
+        for i in range(100):
+            start = perf_counter()
+            # DirectCube(comp, (-i, i, -i), 1, (0, 0, 0, 0), "Pine")
+            # 0.025
+            # DirectCube(comp, (-i, i, -i), 1)
+            # 0.025
+            cube = DirectCube(comp, (-i, i, -i), 1)
+            start = perf_counter()
+            cube.color = (255, 0, 0, 255)
+            times.append(perf_counter() - start)
+        print(sum(times) / len(times))
+
+    except:
+        print("Failed:\n{}".format(traceback.format_exc()))
+
+
+def stop(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+
+    except:
+        if ui:
+            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+
+
+# begin region
+# class Sphere:
+#     def __init__(self, component, center, diameter, color, material, build_type):
+#         pass
+
+#     def delete(self):
+#         pass
 
 
 # class Game:
