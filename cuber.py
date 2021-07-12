@@ -1,12 +1,10 @@
-# Author-
-# Description-
-
-import adsk.core, adsk.fusion, adsk.cam, traceback
+import logging
+import traceback
 
 import adsk.fusion, adsk.core
 
 
-class DirectBlock:
+class DirectCube:
     def __init__(
         self,
         component,
@@ -16,31 +14,68 @@ class DirectBlock:
         material=None,
         base_feature=None,
     ):
+
+        # these are the attributes which cant be changed after initialization
         self._comp = component
         self._center = center
         self._side_length = side_length
-        self._color = color
-        self._material = material
         self._base_feature = base_feature
 
+        # create the cube itself
         brep = adsk.fusion.TemporaryBRepManager.get().createBox(
             adsk.core.OrientedBoundingBox3D.create(
                 adsk.core.Point3D.create(*self._center),
                 adsk.core.Vector3D.create(1, 0, 0),
                 adsk.core.Vector3D.create(0, 1, 0),
-                side_length,
-                side_length,
-                side_length,
+                self._side_length,
+                self._side_length,
+                self._side_length,
             )
         )
 
+        # add it to the design
         if self._base_feature is not None:
             self._body = self._comp.bRepBodies.add(brep, self._base_feature)
         else:
             self._body = self._comp.bRepBodies.add(brep)
 
-        self.material = self._material
-        self.color = self._color
+        # these are the attributes that can be manipulated after creation
+        # therefore the setter functions are used to set them
+        self._material = None
+        self.material = self._body.appearance.name if material is None else material
+
+        self._color = None
+        self.color = color
+
+    def _get_appearance(self):
+        app = adsk.core.Application.get()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+
+        if self._color is not None:
+            return design.appearances.itemByName(self._material)
+
+        r, g, b, o = self._color
+
+        # create the name of the colored appearance
+        custom_color_suffix = "__custom_"
+        colored_appearance_name = (
+            f"{self._material}{custom_color_suffix}r{r}g{g}b{b}o{o}"
+        )
+
+        # create or get the colored appearance
+        colored_appearance = design.appearances.itemByName(colored_appearance_name)
+        if colored_appearance is None:
+            colored_appearance = design.appearances.addByCopy(
+                app.materialLibraries.itemByName(
+                    "Fusion 360 Appearance Library"
+                ).appearances.itemByName(self._material),
+                colored_appearance_name,
+            )
+            colored_appearance.appearanceProperties.itemByName(
+                "Color"
+            ).value = adsk.core.Color.create(r, g, b, o)
+
+        return colored_appearance
 
     @property
     def component(self):
@@ -65,39 +100,7 @@ class DirectBlock:
     @color.setter
     def color(self, new_color):
         self._color = new_color
-
-        if new_color is None:
-            return
-
-        r, g, b, o = new_color
-
-        app = adsk.core.Application.get()
-        design = adsk.fusion.Design.cast(app.activeProduct)
-
-        # get the name of the native
-        custom_color_suffix = "__custom_colored_"
-        appearance_name = self._body.apperance.name
-        idx = appearance_name.find(custom_color_suffix)
-        if idx != -1:
-            appearance_name = appearance_name[0:idx]
-
-        colored_appearance_name = (
-            f"{appearance_name}{custom_color_suffix}r{r}g{g}b{b}o{o}"
-        )
-
-        colored_appearance = design.appearances.itemByName(colored_appearance_name)
-        if colored_appearance is None:
-            colored_appearance = design.appearances.addByCopy(
-                app.materialLibraries.itemByName(
-                    "Fusion 360 Appearance Library"
-                ).appearances.itemByName(appearance_name),
-                colored_appearance_name,
-            )
-            colored_appearance.appearanceProperties.itemByName(
-                "Color"
-            ).value = adsk.core.Color.create(r, g, b, o)
-
-        self._body.appearance = colored_appearance
+        self._body.appearance = self._get_appearance()
 
     @property
     def material(self):
@@ -106,19 +109,40 @@ class DirectBlock:
     @material.setter
     def material(self, material_name):
         self._material = material_name
-
-        if material_name is None:
-            return
-
-        app = adsk.core.Application.get()
-        design = adsk.fusion.Design.cast(app.activeProduct)
-
-        self._body.appearance = design.appearances.itemByName(material_name)
+        self._body.appearance = self._get_appearance()
 
     def delete(self):
         self._body.deleteMe()
 
 
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        root = design.rootComponent
+
+        comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+
+        cube = DirectCube(comp, (0, 0, 0), 1)
+
+    except:
+        if ui:
+            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+
+
+def stop(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+
+    except:
+        if ui:
+            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+
+
+# begin region
 # class Sphere:
 #     def __init__(self, component, center, diameter, color, material, build_type):
 #         pass
@@ -168,27 +192,4 @@ class DirectBlock:
 #     def get_voxels(self):
 #         voxels = {(0, x, y): (Block, self.material)}
 # voxels = [Voxel(pos, field.color) for pos in field.elements] + []
-
-
-def run(context):
-    ui = None
-    try:
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox("Hello addin")
-
-    except:
-        if ui:
-            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
-
-
-def stop(context):
-    ui = None
-    try:
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox("Stop addin")
-
-    except:
-        if ui:
-            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+# end region
