@@ -1,11 +1,16 @@
 import logging
 import traceback
 from time import perf_counter
+from abc import ABC
 
 import adsk.fusion, adsk.core
 
 
-class DirectCube:
+class Voxel(ABC):
+    pass
+
+
+class DirectCube(Voxel):
     def __init__(
         self,
         component,
@@ -13,7 +18,7 @@ class DirectCube:
         side_length,
         color=None,
         material=None,
-        base_feature=None,
+        # base_feature=None, # is not setable in direct design
         name="Cube",
     ):
         app = adsk.core.Application.get()
@@ -27,7 +32,7 @@ class DirectCube:
         self._comp = component
         self._center = center
         self._side_length = side_length
-        self._base_feature = base_feature
+        # self._base_feature = base_feature
 
         # create the cube itself
         brep = adsk.fusion.TemporaryBRepManager.get().createBox(
@@ -42,10 +47,10 @@ class DirectCube:
         )
 
         # add it to the design
-        if self._base_feature is not None:
-            self._body = self._comp.bRepBodies.add(brep, self._base_feature)
-        else:
-            self._body = self._comp.bRepBodies.add(brep)
+        # if self._base_feature is not None:
+        #     self._body = self._comp.bRepBodies.add(brep, self._base_feature)
+        # else:
+        self._body = self._comp.bRepBodies.add(brep)
 
         # these are the attributes that can be manipulated after creation
         # therefore the setter functions are used to set them
@@ -141,46 +146,62 @@ class VoxelWorld:
         #       voxels have cubic and constnt size
         #       a world existst in exctly one component
         #       only one body per voxel at same time
-        #       
+        #       only in direct design mode
 
-        # self._bodies = {(x, y, z): Block}  # x,y,z in game/grid/voxel coordinates
+        self._grid_size = grid_size
+        self._component = component
 
-    def add_cube(self, coordinates, coloe, material, name):
-        pass
+        self._voxels = {}
 
-    def remove_voxel(self):
-        pass
+    def add_voxel(
+        self, coordinates, voxel_class=DirectCube, color=None, material=None, name=None
+    ):
+        voxel = self._voxels.get(coordinates)
+        if voxel is not None and voxel.__class__ != voxel_class:
+            voxel.delete()
+            self._voxels.pop(coordinates)
+
+        if coordinates not in self._voxels:
+            voxel_class(
+                component=self._component,
+                center=[c * self.grid_size for c in coordinates],
+                side_length=self.grid_size,
+                material=material,
+                color=color,
+                name=name,
+            )
+        else:
+            if material != voxel.material:
+                voxel.material = material
+            if color != voxel.color:
+                voxel.color = color
+            if name != voxel.name:
+                voxel.name = name
+
+    def remove_voxel(self, coordinates):
+        voxel = self._voxels.get(coordinates)
+        if voxel is not None:
+            voxel.delete()
+            self._voxels.pop(coordinates)
+
+    def clear_world(self):
+        for voxel in self._voxels.values():
+            voxel.delete()
+
+        self._voxels.clear()
+
+    # def update(self):
+    #     pass
+
+    @property
+    def grid_size(self):
+        return self._grid_size
+
+    @property
+    def component(self):
+        return self._component
 
 
-#     def add_shape(self, shape_class, position, material, color):
-#         body = self._bodies.get(position)
-#         if body is None:
-#             body = shape_class(self.component, self.grid_size, material, color)
-#             self._bodies[position] = body
-#         else:
-#             if isinstance(body, shape_class):
-#                 body.material = material
-#                 body.color = color
-#             else:
-#                 body.delete()
-#                 body = Block(self.component, self.grid_size, material, color)
-#                 self._bodies[position] = body
-#         return body
-
-#     def add_block(self, position, material, color):
-#         return self.add_shape(Block, position, material, color)
-
-#     def add_sphere(self, position, material, color):
-#         pass
-
-#     def update_worls(self, elements: Dict[position:(shape, material, color)]):
-#         for pos in elements.keys():
-#             self.add_shape(shape, material, color)
-#         for pos in self._elements:
-#             if pos not in elements:
-#                 self._elements[pos].delete()
-#                 self._elements.pop(pos)
-#             # if pos in self._bodies:
 def run(context):
     ui = None
     try:
