@@ -10,7 +10,31 @@ class Voxel(ABC):
     pass
 
 
-class DirectCube(Voxel):
+class DirectVoxel(Voxel):
+    pass
+
+
+# class CubeVoxel(Voxel):
+#     pass
+
+# class DirectCube(DirectVoxel, CubeVoxel):
+#     pass
+
+
+class DirectSphere(DirectVoxel):
+    def __init__(
+        self,
+        component,
+        center,
+        side_length,
+        color,
+        material,
+        name,
+    ):
+        super().__init__()
+
+
+class DirectCube(DirectVoxel):
     def __init__(
         self,
         component,
@@ -146,7 +170,8 @@ class VoxelWorld:
         #       voxels have cubic and constnt size
         #       a world existst in exctly one component
         #       only one body per voxel at same time
-        #       only in direct design mode
+        #       working design modes are determined by the used voxel classes
+        #       all voxel classes contain material and color and name property
 
         self._grid_size = grid_size
         self._component = component
@@ -190,8 +215,33 @@ class VoxelWorld:
 
         self._voxels.clear()
 
-    # def update(self):
-    #     pass
+    def update(self, new_world_def):
+        existing = self.get_coordinates()
+        for coord in existing:
+            if coord not in new_world_def.keys():
+                self.remove_voxel(coord)
+
+        for coord, voxel_def in new_world_def.items():
+            self.add_voxel(*voxel_def)
+
+    # do not return the full _voxels dict somewhere to ensure it doesnt get
+    # manipulated wrong. Instead these methods should be used.
+    def get_voxel(self, coordinates):
+        return self._voxels.get(coordinates)
+
+    def get_all_voxels(self):
+        return self._voxels.values()
+
+    def get_coordinates(self):
+        return self._voxels.keys()
+
+    def to_json(self):
+        raise NotImplementedError()
+
+    def from_json(self, new_world_json):
+        # ...
+        # self.update(d)
+        raise NotImplementedError()
 
     @property
     def grid_size(self):
