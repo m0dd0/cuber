@@ -2,6 +2,7 @@ import logging
 import traceback
 from time import perf_counter
 from abc import ABC, abstractmethod
+from typing import List, Dict
 
 import adsk.fusion, adsk.core
 
@@ -13,7 +14,7 @@ class Voxel(ABC):
         center,
         side_length,
         color=None,
-        material=None,
+        appearance=None,
         # base_feature=None, # is not setable in direct design
         name="Voxel",
     ):
@@ -22,7 +23,7 @@ class Voxel(ABC):
         design = adsk.fusion.Design.cast(app.activeProduct)
         if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
             raise RuntimeError(
-                "A Instance of a DirectCube can not be created in parameteric design environment."
+                "A Instance of a DirectVoxel can not be created in parameteric design environment."
             )
 
         # these are the attributes which cant be changed after initialization
@@ -30,11 +31,16 @@ class Voxel(ABC):
         self._center = center
         self._side_length = side_length
         self._color = color
-        self._material = material
+        self._appearance = appearance
         self._name = name
         # self._base_feature = base_feature
 
         self._body = self._comp.bRepBodies.add(self._create_body())
+
+        # call the setter methods to apply the properties
+        self.appearance = self._appearance
+        self.color = self._color
+        self.name = self._name
 
     def _get_appearance(self):
         app = adsk.core.Application.get()
@@ -42,7 +48,7 @@ class Voxel(ABC):
 
         base_appearance = app.materialLibraries.itemByName(
             "Fusion 360 Appearance Library"
-        ).appearances.itemByName(self._material)
+        ).appearances.itemByName(self._appearance)
 
         if self._color is None:
             return base_appearance
@@ -51,7 +57,7 @@ class Voxel(ABC):
         r, g, b, o = self._color
         custom_color_suffix = "__custom_"
         colored_appearance_name = (
-            f"{self._material}{custom_color_suffix}r{r}g{g}b{b}o{o}"
+            f"{self._appearance}{custom_color_suffix}r{r}g{g}b{b}o{o}"
         )
 
         # create or get the colored appearance
@@ -95,28 +101,29 @@ class Voxel(ABC):
     def name(self):
         return self._name
 
+    @property
+    def appearance(self):
+        return self._appearance
 
-#     @name.setter
-#     def name(self, new_name):
-#         self._name = new_name
-#         self._body.name = new_name
+    @name.setter
+    def name(self, new_name):
+        self._name = new_name
+        self._body.name = new_name
 
-#     @color.setter
-#     def color(self, new_color):
-#         self._color = new_color
-#         self._body.appearance = self._get_appearance()
+    @color.setter
+    def color(self, new_color):
+        self._color = new_color
+        self._body.appearance = self._get_appearance()
 
-#     @property
-#     def material(self):
-#         return self._material
+    @appearance.setter
+    def appearance(self, appearance_name):
+        self._appearance = (
+            self._body.appearance.name if appearance_name is None else appearance_name
+        )
+        self._body.appearance = self._get_appearance()
 
-#     @material.setter
-#     def material(self, material_name):
-#         self._material = material_name
-#         self._body.appearance = self._get_appearance()
-
-#     def delete(self):
-#         self._body.deleteMe()
+    def delete(self):
+        self._body.deleteMe()
 
 
 # class DirectVoxel(Voxel):
@@ -138,13 +145,13 @@ class DirectCube(Voxel):
         center,
         side_length,
         color=None,
-        material=None,
+        appearance=None,
         name="Cube",
     ):
-        super().__init__(component, center, side_length, color, material, name)
+        super().__init__(component, center, side_length, color, appearance, name)
 
     def _create_body(self):
-        brep = adsk.fusion.TemporaryBRepManager.get().createBox(
+        return adsk.fusion.TemporaryBRepManager.get().createBox(
             adsk.core.OrientedBoundingBox3D.create(
                 adsk.core.Point3D.create(*self._center),
                 adsk.core.Vector3D.create(1, 0, 0),
@@ -154,44 +161,24 @@ class DirectCube(Voxel):
                 self._side_length,
             )
         )
-        return brep
 
 
-# class DirectSphere(DirectVoxel):
-#     def __init__(
-#         self,
-#         component,
-#         center,
-#         diameter,
-#         color,
-#         material,
-#         name,
-#     ):
-#         super().__init__()
-#         app = adsk.core.Application.get()
-#         design = adsk.fusion.Design.cast(app.activeProduct)
-#         if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
-#             raise RuntimeError(
-#                 "A Instance of a DirectCube can not be created in parameteric design environment."
-#             )
+class DirectSphere(Voxel):
+    def __init__(
+        self,
+        component,
+        center,
+        diameter,
+        color=None,
+        appearance=None,
+        name="Sphere",
+    ):
+        super().__init__(component, center, diameter, color, appearance, name)
 
-#         # these are the attributes which cant be changed after initialization
-#         self._comp = component
-#         self._center = center
-#         self._diameter = diameter
-
-#         # create the sphere itself
-#         brep = adsk.fusion.TemporaryBRepManager.get().createSphere(
-#             adsk.core.Point3D.create(*self._center), self._diameter / 2
-#         )
-
-#         self._body = self._comp.bRepBodies.add(brep)
-
-#         # these are the attributes that can be manipulated after creation
-#         # therefore the setter functions are used to set them
-#         self._material = self._body.appearance.name if material is None else material
-#         self._color = color
-#         self._name = name
+    def _create_body(self):
+        return adsk.fusion.TemporaryBRepManager.get().createSphere(
+            adsk.core.Point3D.create(*self._center), self._side_length / 2
+        )
 
 
 class VoxelWorld:
@@ -201,7 +188,7 @@ class VoxelWorld:
         #       a world existst in exctly one component
         #       only one body per voxel at same time
         #       working design modes are determined by the used voxel classes
-        #       all voxel classes contain material and color and name property
+        #       all voxel classes contain appearance and color and name property
 
         self._grid_size = grid_size
         self._component = component
@@ -209,7 +196,12 @@ class VoxelWorld:
         self._voxels = {}
 
     def add_voxel(
-        self, coordinates, voxel_class=DirectCube, color=None, material=None, name=None
+        self,
+        coordinates,
+        voxel_class=DirectCube,
+        color=None,
+        appearance=None,
+        name=None,
     ):
         voxel = self._voxels.get(coordinates)
         if voxel is not None and voxel.__class__ != voxel_class:
@@ -221,13 +213,13 @@ class VoxelWorld:
                 component=self._component,
                 center=[c * self.grid_size for c in coordinates],
                 side_length=self.grid_size,
-                material=material,
+                appearance=appearance,
                 color=color,
                 name=name,
             )
         else:
-            if material != voxel.material:
-                voxel.material = material
+            if appearance != voxel.appearance:
+                voxel.appearance = appearance
             if color != voxel.color:
                 voxel.color = color
             if name != voxel.name:
@@ -245,14 +237,14 @@ class VoxelWorld:
 
         self._voxels.clear()
 
-    def update(self, new_world_def):
+    def update(self, new_world_def: Dict[List, Dict]):
         existing = self.get_coordinates()
         for coord in existing:
             if coord not in new_world_def.keys():
                 self.remove_voxel(coord)
 
         for coord, voxel_def in new_world_def.items():
-            self.add_voxel(*voxel_def)
+            self.add_voxel(coord, *voxel_def)
 
     # do not return the full _voxels dict somewhere to ensure it doesnt get
     # manipulated wrong. Instead these methods should be used.
@@ -283,38 +275,57 @@ class VoxelWorld:
 
 
 def run(context):
-    ui = None
     try:
         app = adsk.core.Application.get()
+        ui = app.userInterface
         design = adsk.fusion.Design.cast(app.activeProduct)
         root = design.rootComponent
 
+        ### test cube creation
         comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+        comp.name = "test cube creation"
 
-        times = []
+        cube = DirectCube(comp, (0, 0, 0), 1)
+        cube = DirectCube(comp, (0, 5, 0), 2)
+        cube = DirectCube(comp, (2, 0, 0), 1, (255, 0, 0, 255))
+        cube = DirectCube(comp, (4, 0, 0), 1, (0, 255, 0, 255))
+        cube = DirectCube(comp, (6, 0, 0), 1, appearance="Oak")
+        cube = DirectCube(comp, (6, 0, 0), 1, (255, 0, 0, 255), appearance="Oak")
+        cube = DirectCube(
+            comp, (8, 0, 0), 1, (255, 0, 0, 255), appearance="Oak", name="name"
+        )
+        cube = DirectCube(comp, (10, 0, 0), 1)
+        cube.color = (255, 0, 0, 255)
+        cube.appearance = "Oak"
+        cube.name = "name2"
 
-        for i in range(10):
-            # start = perf_counter()
-            # DirectCube(comp, (-i, i, -i), 1, (0, 0, 0, 0), "Pine")
-            # 0.025
-            # DirectCube(comp, (-i, i, -i), 1)
-            # 0.025
-            cube = DirectCube(comp, (-i, i, -i), 1)
-        #     start = perf_counter()
-        #     cube.color = (255, 0, 0, 255)
-        #     times.append(perf_counter() - start)
-        # print(sum(times) / len(times))
+        ### test sphere creation
+        comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+        comp.name = "test sphere creation"
+
+        sphere = DirectSphere(comp, (0, 0, 0), 1)
+        sphere = DirectSphere(comp, (0, 5, 0), 2)
+        sphere = DirectSphere(comp, (2, 0, 0), 1, (255, 0, 0, 255))
+        sphere = DirectSphere(comp, (4, 0, 0), 1, (0, 255, 0, 255))
+        sphere = DirectSphere(comp, (6, 0, 0), 1, appearance="Oak")
+        sphere = DirectSphere(comp, (6, 0, 0), 1, (255, 0, 0, 255), appearance="Oak")
+        sphere = DirectSphere(
+            comp, (8, 0, 0), 1, (255, 0, 0, 255), appearance="Oak", name="name"
+        )
+
+        sphere = DirectSphere(comp, (10, 0, 0), 1)
+        sphere.color = (255, 0, 0, 255)
+        sphere.appearance = "Oak"
+        sphere.name = "name2"
 
     except:
         print("Failed:\n{}".format(traceback.format_exc()))
 
 
 def stop(context):
-    ui = None
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
 
     except:
-        if ui:
-            ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+        print("Failed:\n{}".format(traceback.format_exc()))
