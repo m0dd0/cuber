@@ -23,8 +23,8 @@ class VoxelWorld:
         coordinates,
         voxel_class=DirectCube,
         color=None,
-        appearance=None,
-        name=None,
+        appearance="Steel - Satin",
+        name="voxel",
     ):
         voxel = self._voxels.get(coordinates)
         if voxel is not None and voxel.__class__ != voxel_class:
@@ -32,7 +32,7 @@ class VoxelWorld:
             self._voxels.pop(coordinates)
 
         if coordinates not in self._voxels:
-            voxel_class(
+            self._voxels[coordinates] = voxel_class(
                 component=self._component,
                 center=[c * self.grid_size for c in coordinates],
                 side_length=self.grid_size,
@@ -62,12 +62,12 @@ class VoxelWorld:
 
     def update(self, new_world_def: Dict[List, Dict]):
         existing = self.get_coordinates()
-        for coord in existing:
+        for coord in set(existing):
             if coord not in new_world_def.keys():
                 self.remove_voxel(coord)
 
         for coord, voxel_def in new_world_def.items():
-            self.add_voxel(coord, *voxel_def)
+            self.add_voxel(coordinates=coord, **voxel_def)
 
     # do not return the full _voxels dict somewhere to ensure it doesnt get
     # manipulated wrong. Instead these methods should be used.

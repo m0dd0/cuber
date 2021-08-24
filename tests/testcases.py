@@ -2,6 +2,7 @@ import traceback
 from collections import defaultdict
 from time import perf_counter
 from typing import List, Callable
+from uuid import uuid4
 
 import adsk.core, adsk.fusion
 
@@ -76,13 +77,73 @@ def test_sphere_creation():
     sphere.name = "name2"
 
 
-def test_voxel_world():
+def test_voxel_world_basic():
     comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
     comp.name = "test voxel world"
 
     world = vox.VoxelWorld(1, comp)
-    for i in range(50):
-        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, i, 255), "Oak", "world voxel")
-        world.add_voxel(
-            (0, i, 0), vox.DirectSphere, (0, i, 0, 255), "Oak", "world voxel"
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 100 + i * 10, 255), "Oak")
+        world.add_voxel((0, i, 0), vox.DirectSphere, (0, 100 + i * 10, 0, 255), "Oak")
+
+
+def test_world_color_change():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test world color change"
+
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+
+    for i in range(5):
+        world.add_voxel((0, 0, 2 * i), vox.DirectCube, (255, 0, 0, 255), "Oak")
+
+
+def test_world_update():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test world update"
+
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+
+    world.update(
+        {
+            (0, 0, 2): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
+            (0, 0, 4): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
+            (0, 0, 15): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
+        }
+    )
+
+
+def test_color():
+    base_appearance = app.materialLibraries.itemByName(
+        "Fusion 360 Appearance Library"
+    ).appearances.itemByName("Oak")
+
+    # colored_appearance = design.appearances.itemByName(colored_appearance_name)
+    # if colored_appearance is None:
+
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test color"
+
+    for i in range(10):
+        cube = adsk.fusion.TemporaryBRepManager.get().createBox(
+            adsk.core.OrientedBoundingBox3D.create(
+                adsk.core.Point3D.create(0, 0, i),
+                adsk.core.Vector3D.create(1, 0, 0),
+                adsk.core.Vector3D.create(0, 1, 0),
+                1,
+                1,
+                1,
+            )
         )
+
+        cube = comp.bRepBodies.add(cube)
+
+        colored_appearance = design.appearances.addByCopy(base_appearance, str(uuid4()))
+        colored_appearance.appearanceProperties.itemByName(
+            "Color"
+        ).value = adsk.core.Color.create(0, 0, 100 + i * 10, 255)
+
+        cube.appearance = colored_appearance

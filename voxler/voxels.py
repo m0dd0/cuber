@@ -10,7 +10,7 @@ class Voxel(ABC):
         center,
         side_length,
         color=None,
-        appearance=None,
+        appearance="Steel - Satin",
         # base_feature=None, # is not setable in direct design
         name="Voxel",
     ):
@@ -113,9 +113,7 @@ class Voxel(ABC):
 
     @appearance.setter
     def appearance(self, appearance_name):
-        self._appearance = (
-            self._body.appearance.name if appearance_name is None else appearance_name
-        )
+        self._appearance = appearance_name
         self._body.appearance = self._get_appearance()
 
     def delete(self):
@@ -141,7 +139,7 @@ class DirectCube(Voxel):
         center,
         side_length,
         color=None,
-        appearance=None,
+        appearance="Steel - Satin",
         name="Cube",
     ):
         super().__init__(component, center, side_length, color, appearance, name)
@@ -166,7 +164,7 @@ class DirectSphere(Voxel):
         center,
         side_length,
         color=None,
-        appearance=None,
+        appearance="Steel - Satin",
         name="Sphere",
     ):
         super().__init__(component, center, side_length, color, appearance, name)

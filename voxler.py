@@ -18,7 +18,14 @@ def run(context):
             if name.startswith("test") and callable(getattr(testcases, name))
         ]
 
-        results = testcases.execute_cases(all_testcases)
+        current_testcases = [
+            # testcases.test_voxel_world,
+            # testcases.test_color,
+            # testcases.test_world_color_change,
+            testcases.test_world_update,
+        ]
+
+        results = testcases.execute_cases(current_testcases)
         print("### RESULTS ###")
         pprint(dict(results))
         if all([r["passed"] for r in results.values()]):
