@@ -4,7 +4,7 @@ from .voxels import DirectCube
 
 
 class VoxelWorld:
-    def __init__(self, grid_size, component):
+    def __init__(self, grid_size, component, offset=(0, 0, 0)):
         # limitations and conditions:
         #       voxels have cubic and constnt size
         #       a world existst in exctly one component
@@ -15,6 +15,7 @@ class VoxelWorld:
 
         self._grid_size = grid_size
         self._component = component
+        self._offset = offset
 
         self._voxels = {}
 
@@ -34,7 +35,9 @@ class VoxelWorld:
         if coordinates not in self._voxels:
             self._voxels[coordinates] = voxel_class(
                 component=self._component,
-                center=[c * self.grid_size for c in coordinates],
+                center=[
+                    c * self.grid_size + o for c, o in zip(coordinates, self._offset)
+                ],
                 side_length=self.grid_size,
                 appearance=appearance,
                 color=color,
@@ -95,3 +98,7 @@ class VoxelWorld:
     @property
     def component(self):
         return self._component
+
+    @property
+    def offset(self):
+        return self._offset
