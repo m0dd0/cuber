@@ -57,7 +57,7 @@ class VoxelWorld:
             voxel.delete()
             self._voxels.pop(coordinates)
 
-    def clear_world(self):
+    def clear(self):
         for voxel in self._voxels.values():
             voxel.delete()
 
@@ -94,6 +94,10 @@ class VoxelWorld:
     @property
     def grid_size(self):
         return self._grid_size
+
+    @grid_size.setter
+    def grid_size(self, new_grid_size):
+        self._grid_size = new_grid_size
 
     @property
     def component(self):
