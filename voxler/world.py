@@ -38,7 +38,7 @@ class VoxelWorld:
             self._voxels[coordinates] = voxel_class(
                 component=self._component,
                 center=[
-                    c * self.grid_size + o for c, o in zip(coordinates, self._offset)
+                    (c + o) * self.grid_size for c, o in zip(coordinates, self._offset)
                 ],
                 side_length=self.grid_size,
                 appearance=appearance,
