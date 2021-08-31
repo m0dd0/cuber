@@ -1,5 +1,7 @@
 from typing import List, Dict
 
+import adsk.core
+
 from .voxels import DirectCube
 
 
@@ -63,14 +65,37 @@ class VoxelWorld:
 
         self._voxels.clear()
 
-    def update(self, new_world_def: Dict[List, Dict]):
+    def update(
+        self,
+        new_world_def: Dict[List, Dict],
+        progress_dialog: adsk.core.ProgressDialog = None,
+        progress_dialog_delay=0,
+    ):
         existing = self.get_coordinates()
         for coord in set(existing):
             if coord not in new_world_def.keys():
                 self.remove_voxel(coord)
 
-        for coord, voxel_def in new_world_def.items():
-            self.add_voxel(coordinates=coord, **voxel_def)
+        if progress_dialog is None:
+            for coord, voxel_def in new_world_def.items():
+                self.add_voxel(coordinates=coord, **voxel_def)
+        else:
+            cancelled = False
+            progress_dialog.show(
+                progress_dialog.title,
+                progress_dialog.message,
+                0,
+                len(new_world_def),
+                progress_dialog_delay,
+            )
+            for i, (coord, voxel_def) in enumerate(new_world_def.items()):
+                if progress_dialog.wasCancelled:
+                    cancelled = True
+                    break
+                self.add_voxel(coordinates=coord, **voxel_def)
+                progress_dialog.progressValue = i + 1
+            progress_dialog.hide()
+            return not cancelled
 
     # do not return the full _voxels dict somewhere to ensure it doesnt get
     # manipulated wrong. Instead these methods should be used.
