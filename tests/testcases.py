@@ -159,6 +159,7 @@ def test_world_update():
         }
     )
 
+
 def test_clear():
     comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
     comp.name = "test world clear"
