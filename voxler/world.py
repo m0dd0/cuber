@@ -4,7 +4,7 @@ from .voxels import DirectCube
 
 
 class VoxelWorld:
-    def __init__(self, grid_size, component):
+    def __init__(self, grid_size, component, offset=(0, 0, 0)):
         # limitations and conditions:
         #       voxels have cubic and constnt size
         #       a world existst in exctly one component
@@ -15,6 +15,7 @@ class VoxelWorld:
 
         self._grid_size = grid_size
         self._component = component
+        self._offset = offset
 
         self._voxels = {}
 
@@ -24,8 +25,11 @@ class VoxelWorld:
         voxel_class=DirectCube,
         color=None,
         appearance="Steel - Satin",
-        name="voxel",
+        additional_properties=None,
     ):
+        if additional_properties is None:
+            additional_properties = {}
+
         voxel = self._voxels.get(coordinates)
         if voxel is not None and voxel.__class__ != voxel_class:
             voxel.delete()
@@ -34,19 +38,19 @@ class VoxelWorld:
         if coordinates not in self._voxels:
             self._voxels[coordinates] = voxel_class(
                 component=self._component,
-                center=[c * self.grid_size for c in coordinates],
+                center=[
+                    c * self.grid_size + o for c, o in zip(coordinates, self._offset)
+                ],
                 side_length=self.grid_size,
                 appearance=appearance,
                 color=color,
-                name=name,
+                **additional_properties
             )
         else:
             if appearance != voxel.appearance:
                 voxel.appearance = appearance
             if color != voxel.color:
                 voxel.color = color
-            if name != voxel.name:
-                voxel.name = name
 
     def remove_voxel(self, coordinates):
         voxel = self._voxels.get(coordinates)
@@ -54,7 +58,7 @@ class VoxelWorld:
             voxel.delete()
             self._voxels.pop(coordinates)
 
-    def clear_world(self):
+    def clear(self):
         for voxel in self._voxels.values():
             voxel.delete()
 
@@ -92,6 +96,14 @@ class VoxelWorld:
     def grid_size(self):
         return self._grid_size
 
+    @grid_size.setter
+    def grid_size(self, new_grid_size):
+        self._grid_size = new_grid_size
+
     @property
     def component(self):
         return self._component
+
+    @property
+    def offset(self):
+        return self._offset
