@@ -25,8 +25,11 @@ class VoxelWorld:
         voxel_class=DirectCube,
         color=None,
         appearance="Steel - Satin",
-        name="voxel",
+        additional_properties=None,
     ):
+        if additional_properties is None:
+            additional_properties = {}
+
         voxel = self._voxels.get(coordinates)
         if voxel is not None and voxel.__class__ != voxel_class:
             voxel.delete()
@@ -41,15 +44,13 @@ class VoxelWorld:
                 side_length=self.grid_size,
                 appearance=appearance,
                 color=color,
-                name=name,
+                **additional_properties
             )
         else:
             if appearance != voxel.appearance:
                 voxel.appearance = appearance
             if color != voxel.color:
                 voxel.color = color
-            if name != voxel.name:
-                voxel.name = name
 
     def remove_voxel(self, coordinates):
         voxel = self._voxels.get(coordinates)
