@@ -62,7 +62,9 @@ class Voxel(ABC):
         ).appearances.itemByName(self._appearance)
 
         if self._color is None:
-            return base_appearance
+            # no not use id since it is kept at creation of new custom apperance
+            appearace_des = design.appearances.itemByName(base_appearance.name)
+            return appearace_des
 
         # create the name of the colored appearance
         r, g, b, o = self._color
@@ -118,8 +120,10 @@ class DirectVoxel(Voxel):
 
         super().__init__(component, center, side_length, color, appearance)
 
-        # name is only supported by DirectVoxels, not for CGVoxesl
+        # name is only supported by DirectVoxels, not for CGVoxesl and need to be
+        # applied via setter method
         self._name = name
+        self.name = self._name
 
     @property
     def name(self):
@@ -130,12 +134,12 @@ class DirectVoxel(Voxel):
         self._name = new_name
         self._body.name = new_name
 
-    @color.setter
+    @Voxel.color.setter
     def color(self, new_color):
         self._color = new_color
         self._body.appearance = self._get_appearance()
 
-    @appearance.setter
+    @Voxel.appearance.setter
     def appearance(self, appearance_name):
         self._appearance = appearance_name
         self._body.appearance = self._get_appearance()
@@ -181,8 +185,10 @@ class DirectSphere(DirectVoxel):
         super().__init__(component, center, side_length, color, appearance, name)
 
     def _create_body(self):
-        return adsk.fusion.TemporaryBRepManager.get().createSphere(
-            adsk.core.Point3D.create(*self._center), self._side_length / 2
+        return self._comp.bRepBodies.add(
+            adsk.fusion.TemporaryBRepManager.get().createSphere(
+                adsk.core.Point3D.create(*self._center), self._side_length / 2
+            )
         )
 
 
@@ -196,18 +202,18 @@ class CGVoxel(Voxel):
         appearance=None,
         cg_group_id="voxler",
     ):
-        super().__init__(component, center, side_length, color, appearance)
-
         # find or create the custom grapohics group
+        # this needs to be set before callnig the parent constructor because
+        # the apretn contructor will call _create_body which depends on self._graphics
         self._graphics = None
-        for cg_group in self._comp.customGraphicsGroups:
+        for cg_group in component.customGraphicsGroups:
             if cg_group.id == cg_group_id:
                 self._graphics = cg_group
         if self._graphics is None:
-            self._graphics = self._comp.customGraphicsGroups.add()
+            self._graphics = component.customGraphicsGroups.add()
             self._graphics.id = cg_group_id
 
-        adsk.core.Application.get().activeViewport.refresh()
+        super().__init__(component, center, side_length, color, appearance)
 
     def _get_cg_appearannce(self):
         if self.appearance is None:
@@ -224,12 +230,12 @@ class CGVoxel(Voxel):
                 self._get_appearance()
             )
 
-    @color.setter
+    @Voxel.color.setter
     def color(self, new_color):
         self._color = new_color
         self._body.color = self._get_cg_appearannce()
 
-    @appearance.setter
+    @Voxel.appearance.setter
     def appearance(self, appearance_name):
         self._appearance = appearance_name
         self._body.color = self._get_cg_appearannce()
@@ -240,7 +246,7 @@ class CGCube(CGVoxel):
     #     super().__init__(component, center, side_length, color, appearance, cg_group_id)
 
     def _create_body(self):
-        return self._graphics.addBrepBody(
+        return self._graphics.addBRepBody(
             adsk.fusion.TemporaryBRepManager.get().createBox(
                 adsk.core.OrientedBoundingBox3D.create(
                     adsk.core.Point3D.create(*self._center),
@@ -259,7 +265,7 @@ class CGSphere(CGVoxel):
     #     super().__init__(component, center, side_length, color, appearance, cg_group_id)
 
     def _create_body(self):
-        return self._graphics.addBrepBody(
+        return self._graphics.addBRepBody(
             adsk.fusion.TemporaryBRepManager.get().createSphere(
                 adsk.core.Point3D.create(*self._center), self._side_length / 2
             )
