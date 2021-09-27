@@ -21,8 +21,9 @@ def run(context):
         current_testcases = [
             # testcases.test_driect_cube_creation,
             # testcases.test_direct_sphere_creation,
-            testcases.test_cg_cube_creation,
-            testcases.test_cg_sphere_creation,
+            # testcases.test_cg_cube_creation,
+            # testcases.test_cg_sphere_creation,
+            testcases.test_voxel_world_basic
         ]
 
         results = testcases.execute_cases(current_testcases)

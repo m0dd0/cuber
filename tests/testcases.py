@@ -119,50 +119,52 @@ def test_cg_sphere_creation():
     sphere.delete()
 
 
-# def test_voxel_world_basic():
-#     comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
-#     comp.name = "test voxel world"
+def test_voxel_world_basic():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test voxel world"
 
-#     world = vox.VoxelWorld(1, comp)
-#     for i in range(10):
-#         world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 100 + i * 10, 255), "Oak")
-#         world.add_voxel((0, i, 0), vox.DirectSphere, (0, 100 + i * 10, 0, 255), "Oak")
-
-
-# def test_world_color_change():
-#     comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
-#     comp.name = "test world color change"
-
-#     world = vox.VoxelWorld(1, comp)
-#     for i in range(10):
-#         world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
-
-#     for i in range(5):
-#         world.add_voxel((0, 0, 2 * i), vox.DirectCube, (255, 0, 0, 255), "Oak")
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 100 + i * 10, 255), "Oak")
+        world.add_voxel((0, i, 0), vox.DirectSphere, (0, 100 + i * 10, 0, 255), "Oak")
+        world.add_voxel((0, -i, 0), vox.CGCube, (0, 100 + i * 10, 0, 255), "Oak")
+        world.add_voxel((0, 0, -i), vox.CGSphere, (0, 100 + i * 10, 0, 255), "Oak")
 
 
-# def test_world_update():
-#     comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
-#     comp.name = "test world update"
+def test_world_color_change():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test world color change"
 
-#     world = vox.VoxelWorld(1, comp)
-#     for i in range(10):
-#         world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
 
-#     world.update(
-#         {
-#             (0, 0, 2): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
-#             (0, 0, 4): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
-#             (0, 0, 15): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
-#         }
-#     )
+    for i in range(5):
+        world.add_voxel((0, 0, 2 * i), vox.DirectCube, (255, 0, 0, 255), "Oak")
 
-# def test_clear():
-#     comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
-#     comp.name = "test world clear"
 
-#     world = vox.VoxelWorld(1, comp)
-#     for i in range(10):
-#         world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+def test_world_update():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test world update"
 
-#     world.clear()
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+
+    world.update(
+        {
+            (0, 0, 2): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
+            (0, 0, 4): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
+            (0, 0, 15): {"voxel_class": vox.DirectCube, "color": (255, 0, 0, 255)},
+        }
+    )
+
+def test_clear():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test world clear"
+
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+
+    world.clear()
