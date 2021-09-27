@@ -22,7 +22,8 @@ def run(context):
             # testcases.test_voxel_world,
             # testcases.test_color,
             # testcases.test_world_color_change,
-            testcases.test_world_update,
+            # testcases.test_world_update,
+            testcases.test_clear
         ]
 
         results = testcases.execute_cases(current_testcases)

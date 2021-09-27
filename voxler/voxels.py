@@ -11,32 +11,44 @@ class Voxel(ABC):
         side_length,
         color=None,
         appearance="Steel - Satin",
-        # base_feature=None, # is not setable in direct design
-        name="Voxel",
     ):
-        super().__init__()
-        app = adsk.core.Application.get()
-        design = adsk.fusion.Design.cast(app.activeProduct)
-        if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
-            raise RuntimeError(
-                "A Instance of a DirectVoxel can not be created in parameteric design environment."
-            )
-
         # these are the attributes which cant be changed after initialization
         self._comp = component
         self._center = center
         self._side_length = side_length
         self._color = color
         self._appearance = appearance
-        self._name = name
-        # self._base_feature = base_feature
 
-        self._body = self._comp.bRepBodies.add(self._create_body())
+        # create the body
+        self._body = self._create_body()
 
         # call the setter methods to apply the properties
         self.appearance = self._appearance
         self.color = self._color
-        self.name = self._name
+
+    @property
+    def component(self):
+        return self._comp
+
+    @property
+    def center(self):
+        return self._center
+
+    @property
+    def side_length(self):
+        return self._side_length
+
+    @property
+    def body(self):
+        return self._body
+
+    @property
+    def appearance(self):
+        return self._appearance
+
+    @property
+    def color(self):
+        return self._color
 
     def _get_appearance(self):
         app = adsk.core.Application.get()
@@ -73,33 +85,46 @@ class Voxel(ABC):
     def _create_body(self):
         raise NotImplementedError()
 
-    @property
-    def component(self):
-        return self._comp
+    @abstractmethod
+    def delete(self):
+        raise NotImplementedError()
 
-    @property
-    def center(self):
-        return self._center
+    @appearance.setter
+    @abstractmethod
+    def appearance(self):
+        raise NotImplementedError()
 
-    @property
-    def side_length(self):
-        return self._side_length
-
-    @property
-    def body(self):
-        return self._body
-
-    @property
+    @color.setter
+    @abstractmethod
     def color(self):
-        return self._color
+        raise NotImplementedError()
+
+
+class DirectVoxel(Voxel):
+    def __init__(
+        self,
+        component,
+        center,
+        side_length,
+        color,
+        appearance,
+        name="Voxel",
+    ):
+        app = adsk.core.Application.get()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
+            raise RuntimeError(
+                "A instance of a DirectVoxel can not be created in parameteric design environment."
+            )
+
+        super().__init__(component, center, side_length, color, appearance)
+
+        # name is only supported by DirectVoxels, not for CGVoxesl
+        self._name = name
 
     @property
     def name(self):
         return self._name
-
-    @property
-    def appearance(self):
-        return self._appearance
 
     @name.setter
     def name(self, new_name):
@@ -120,19 +145,7 @@ class Voxel(ABC):
         self._body.deleteMe()
 
 
-# class DirectVoxel(Voxel):
-#     pass
-
-
-# class CubeVoxel(Voxel):
-#     pass
-
-
-# class DirectCube(DirectVoxel, CubeVoxel):
-#     pass
-
-
-class DirectCube(Voxel):
+class DirectCube(DirectVoxel):
     def __init__(
         self,
         component,
@@ -145,19 +158,21 @@ class DirectCube(Voxel):
         super().__init__(component, center, side_length, color, appearance, name)
 
     def _create_body(self):
-        return adsk.fusion.TemporaryBRepManager.get().createBox(
-            adsk.core.OrientedBoundingBox3D.create(
-                adsk.core.Point3D.create(*self._center),
-                adsk.core.Vector3D.create(1, 0, 0),
-                adsk.core.Vector3D.create(0, 1, 0),
-                self._side_length,
-                self._side_length,
-                self._side_length,
+        return self._comp.bRepBodies.add(
+            adsk.fusion.TemporaryBRepManager.get().createBox(
+                adsk.core.OrientedBoundingBox3D.create(
+                    adsk.core.Point3D.create(*self._center),
+                    adsk.core.Vector3D.create(1, 0, 0),
+                    adsk.core.Vector3D.create(0, 1, 0),
+                    self._side_length,
+                    self._side_length,
+                    self._side_length,
+                )
             )
         )
 
 
-class DirectSphere(Voxel):
+class DirectSphere(DirectVoxel):
     def __init__(
         self,
         component,
@@ -173,3 +188,40 @@ class DirectSphere(Voxel):
         return adsk.fusion.TemporaryBRepManager.get().createSphere(
             adsk.core.Point3D.create(*self._center), self._side_length / 2
         )
+
+
+class CGVoxel(Voxel):
+    def __init__(self, component, center, side_length, color, appearance):
+        super().__init__(component, center, side_length, color, appearance)
+        # self._graphics = self._comp.
+
+    def delete(self):
+        pass
+
+    @color.setter
+    def color(self, new_color):
+        pass
+
+    @appearance.setter
+    def appearance(self, appearance_name):
+        pass
+
+
+class CGCube(CGVoxel):
+    def __init__(self, component, center, side_length, color, appearance):
+        super().__init__(component, center, side_length, color, appearance)
+
+    def _create_body(self):
+        self._graphics.addBrepBody(
+            adsk.fusion.TemporaryBRepManager.get().createSphere(
+                adsk.core.Point3D.create(*self._center), self._side_length / 2
+            )
+        )
+
+
+class CGSphere(CGVoxel):
+    def __init__(self, component, center, side_length, color, appearance):
+        super().__init__(component, center, side_length, color, appearance)
+
+    def _create_body(self):
+        pass

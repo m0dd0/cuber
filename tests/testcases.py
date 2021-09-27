@@ -147,3 +147,13 @@ def test_color():
         ).value = adsk.core.Color.create(0, 0, 100 + i * 10, 255)
 
         cube.appearance = colored_appearance
+
+def test_clear():
+    comp = root.occurrences.addNewComponent(adsk.core.Matrix3D.create()).component
+    comp.name = "test world clear"
+
+    world = vox.VoxelWorld(1, comp)
+    for i in range(10):
+        world.add_voxel((0, 0, i), vox.DirectCube, (0, 0, 255, 255), "Oak")
+
+    world.clear()
