@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 import adsk.fusion, adsk.core
 
@@ -6,12 +7,28 @@ import adsk.fusion, adsk.core
 class Voxel(ABC):
     def __init__(
         self,
-        component,
-        center,
-        side_length,
-        color=None,
-        appearance="Steel - Satin",
+        component: adsk.fusion.Component,
+        center: Tuple[int],
+        side_length: float,
+        color: Tuple[str] = None,
+        appearance: str = "Steel - Satin",
     ):
+        """Abstract Base class for all voxels. Sets the attributes and calls the _createy_body()
+        method of the implementing subclass.
+
+        Args:
+            component (adsk.fusion.Component): The component into which the voxel is created.
+                Cant be changed after initialization.
+            center (Tuple[int]): The center point of the voxel as (x,y,z) tuple. The scale
+                is according to the Fusion units. Cant be changed after initialization.
+            side_length (float): The side length in Fusion units. Cant be changed after initialization.
+            color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
+                Defaults to the standard appearance. Can be changed after initialization.
+                Setter method must be implemented by the subclass.
+            appearance (str, optional): The appearance of the voxel as name of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+                Can be changed after initialization. Setter method must be implemented by the subclass.
+        """
         # these are the attributes which cant be changed after initialization
         self._comp = component
         self._center = center
@@ -26,34 +43,47 @@ class Voxel(ABC):
         self.appearance = self._appearance
         self.color = self._color
 
-    def delete(self):
+    def delete(self) -> None:
+        """Deletes the voxler instance. Same syntax for every subclass (DirectBodies and CustomGrphics)"""
         self._body.deleteMe()
 
     @property
-    def component(self):
+    def component(self) -> adsk.fusion.Component:
+        """The Fusion360 Component which owns this voxel."""
         return self._comp
 
     @property
-    def center(self):
+    def center(self) -> Tuple[float]:
+        """The center point of the voxel as (x,y,z) tuple in Fusions default coordinates."""
         return self._center
 
     @property
-    def side_length(self):
+    def side_length(self) -> float:
+        """The side length of the voxel."""
         return self._side_length
 
     @property
-    def body(self):
+    def body(self) -> adsk.fusion.BRepBody:
+        """The Fusion BrePBody this voxel represents."""
         return self._body
 
     @property
-    def appearance(self):
+    def appearance(self) -> str:
+        """The name of the appearance as found in the Fuusion360 Material Library applied to the voxel."""
         return self._appearance
 
     @property
-    def color(self):
+    def color(self) -> Tuple[int]:
+        """The color as (r,g,b,o) tuple which is used to modify the applied appearance."""
         return self._color
 
-    def _get_appearance(self):
+    def _get_appearance(self) -> adsk.core.Appearance:
+        """Utility method to get or create a (colored) appearance from the appearance and
+        color attribute of the voxel.
+
+        Returns:
+            adsk.core.Appearance: The colored appearance to apply.
+        """
         app = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(app.activeProduct)
 
@@ -88,29 +118,59 @@ class Voxel(ABC):
 
     @abstractmethod
     def _create_body(self):
+        """Creates the Body depending on the used subclass. This method must be implemnted
+        by each subclass and determines the shape of the coxel and how its created.
+        This method is called in the cosntructor of the Voxel base class.
+
+        Raises:
+            NotImplementedError: _description_
+        """
         raise NotImplementedError()
 
     @appearance.setter
     @abstractmethod
     def appearance(self):
+        """Updates the appearance of the voxel by changing the actual apperance of the
+        body behind the voxel.
+        """
         raise NotImplementedError()
 
     @color.setter
     @abstractmethod
     def color(self):
+        """Updates the color of the voxel by changing the actual apperance/color of the
+        body behind the voxel.
+        """
         raise NotImplementedError()
 
 
 class DirectVoxel(Voxel):
     def __init__(
         self,
-        component,
-        center,
-        side_length,
-        color,
-        appearance,
-        name="Voxel",
+        component: adsk.fusion.Component,
+        center: Tuple[int],
+        side_length: float,
+        color: Tuple[str] = None,
+        appearance: str = "Steel - Satin",
+        name: str = "Voxel",
     ):
+        """Abstract Base class for all voxels created as a direct brepbody with the TemporaryBrepManager.
+        Ensures that the design is currently in DirectDesign mode.
+
+        Args:
+            component (adsk.fusion.Component): The component into which the voxel is created.
+                Cant be changed after initialization.
+            center (Tuple[int]): The center point of the voxel as (x,y,z) tuple. The scale
+                is according to the Fusion units. Cant be changed after initialization.
+            side_length (float): The side length in Fusion units. Cant be changed after initialization.
+            color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
+                Defaults to the standard appearance. Can be changed after initialization.
+                Setter method must be implemented by the subclass.
+            appearance (str, optional): The appearance of the voxel as name of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+                Can be changed after initialization. Setter method must be implemented by the subclass.
+            name (str, optional): The name of the representing body in Fusion. Defaults to "voxel".
+        """
         app = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(app.activeProduct)
         if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
@@ -148,16 +208,38 @@ class DirectVoxel(Voxel):
 class DirectCube(DirectVoxel):
     def __init__(
         self,
-        component,
-        center,
-        side_length,
-        color=None,
-        appearance="Steel - Satin",
-        name="Cube",
+        component: adsk.fusion.Component,
+        center: Tuple[int],
+        side_length: float,
+        color: Tuple[str] = None,
+        appearance: str = "Steel - Satin",
+        name: str = "Cube",
     ):
+        """Instantiabale class for which represents a cubic voxel created as a direct brepbody with the TemporaryBrepManager.
+
+        Args:
+            component (adsk.fusion.Component): The component into which the voxel is created.
+                Cant be changed after initialization.
+            center (Tuple[int]): The center point of the voxel as (x,y,z) tuple. The scale
+                is according to the Fusion units. Cant be changed after initialization.
+            side_length (float): The side length in Fusion units. Cant be changed after initialization.
+            color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
+                Defaults to the standard appearance. Can be changed after initialization.
+                Setter method must be implemented by the subclass.
+            appearance (str, optional): The appearance of the voxel as name of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+                Can be changed after initialization. Setter method must be implemented by the subclass.
+            name (str, optional): The name of the representing body in Fusion. Defaults to "cube".
+        """
         super().__init__(component, center, side_length, color, appearance, name)
 
-    def _create_body(self):
+    def _create_body(self) -> adsk.fusion.BRepBody:
+        """Creates a cube accorsing to the properties of the voxel as a BrepBody using the
+        TemporaryBrepManager.
+
+        Returns:
+            adsk.fusion.BRepBody: The created BrepBody
+        """
         return self._comp.bRepBodies.add(
             adsk.fusion.TemporaryBRepManager.get().createBox(
                 adsk.core.OrientedBoundingBox3D.create(
@@ -175,16 +257,38 @@ class DirectCube(DirectVoxel):
 class DirectSphere(DirectVoxel):
     def __init__(
         self,
-        component,
-        center,
-        side_length,
-        color=None,
-        appearance="Steel - Satin",
-        name="Sphere",
+        component: adsk.fusion.Component,
+        center: Tuple[int],
+        side_length: float,
+        color: Tuple[str] = None,
+        appearance: str = "Steel - Satin",
+        name: str = "Sphere",
     ):
+        """Instantiabale class for which represents a spheric voxel created as a direct brepbody with the TemporaryBrepManager.
+
+        Args:
+            component (adsk.fusion.Component): The component into which the voxel is created.
+                Cant be changed after initialization.
+            center (Tuple[int]): The center point of the voxel as (x,y,z) tuple. The scale
+                is according to the Fusion units. Cant be changed after initialization.
+            side_length (float): The side length in Fusion units. Cant be changed after initialization.
+            color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
+                Defaults to the standard appearance. Can be changed after initialization.
+                Setter method must be implemented by the subclass.
+            appearance (str, optional): The appearance of the voxel as name of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+                Can be changed after initialization. Setter method must be implemented by the subclass.
+            name (str, optional): The name of the representing body in Fusion. Defaults to "Sphere".
+        """
         super().__init__(component, center, side_length, color, appearance, name)
 
-    def _create_body(self):
+    def _create_body(self) -> adsk.fusion.BRepBody:
+        """Creates a sphere accorsing to the properties of the voxel as a BrepBody using the
+        TemporaryBrepManager.
+
+        Returns:
+            adsk.fusion.BRepBody: The created BrepBody
+        """
         return self._comp.bRepBodies.add(
             adsk.fusion.TemporaryBRepManager.get().createSphere(
                 adsk.core.Point3D.create(*self._center), self._side_length / 2
