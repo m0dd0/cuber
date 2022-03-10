@@ -130,7 +130,7 @@ class VoxelWorld:
         Args:
             new_world_def (Dict[List, Dict]): The representation of the new world as as
             {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
-            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name "vox"}.
+            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
             progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
                 passed this is shown while adding the new voxels. Defaults to None.
 
