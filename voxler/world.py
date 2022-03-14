@@ -1,8 +1,8 @@
-from typing import Any, List, Dict, Tuple
+from typing import List, Dict, Tuple
 
 import adsk.core, adsk.fusion
 
-from .voxels import DirectCube, Voxel
+from .voxels import DirectCube, DirectSphere, Voxel
 
 
 class VoxelWorld:
@@ -14,11 +14,12 @@ class VoxelWorld:
     ):
         """A world contains a set of voxels. For the voxels the following conditions are
         ensured:
-            - voxels have cubic and constnt size
+            - voxels have cubic and constantt size (outer bounding box)
             - a world existst in exctly one component
             - only one body per voxel at same time
             - working design and creation modes are determined by the used voxel classes
-            - all voxel classes contain appearance and color and name property which are the only
+            - only DirectVoxels which accept the parameters {color, appearance, name} besides
+                center and side_length are possible
 
         In general the position of voxels are given in game coordinates which represents the
         distance from the offset to the center of the voxel in multitudes of the grid size.
@@ -41,32 +42,35 @@ class VoxelWorld:
     def add_voxel(
         self,
         coordinates: Tuple[int],
-        voxel_class: Voxel = DirectCube,
+        shape: str = "cube",
         color: Tuple[int] = None,
         appearance: str = "Steel - Satin",
-        additional_properties: Dict[str, Any] = None,
+        name: str = "voxel",
     ):
-        """Adds a voxel to the world at the given game coordinates. Which kind of voxel
-        gets added is determined by the passed Voxel class and the other parameters which
-        get passed to the constructor of the voxel class.
+        """Adds a (direct) voxel to the world at the given game coordinates. The properties
+        of the voxels are determined by the passed argumnets.
         If the voxel already exists the voxel is updated or recreated if it has a different
         voxel type.
 
         Args:
             coordinates (Tuple[int]): The (x_game, y_game, z_game) coordinates of the voxel.
-            voxel_class (Voxel, optional): The Voxel class which is used to build this voxel.
-                Defaults to DirectCube.
+            shape (str, optional): The shape of the added voxel. Possible values are "cube"
+                which results in a DirectCube voxel beeing instantiaed and "sphere" which
+                results in a DirectSphere beeing instantiated. Defaults to "cube".
             color (Tuple[int], optional): The (r,g,b,o) tuple which gets passed to the
                 Voxel constructor. Defaults to None.
             appearance (str, optional): The name of the used appearance which gets passed to
                 the voxel constructor. Defaults to "Steel - Satin".
-            additional_properties (Dict[str, Any], optional): Additional properties which get
-                passed to the voxel constructor. Defaults to None.
+            name (str, optional): The body name of the created voxel. Defaults to "voxel".
         """
-        if additional_properties is None:
-            additional_properties = {}
-
         voxel = self._voxels.get(coordinates)
+
+        if shape == "cube":
+            voxel_class = DirectCube
+        elif shape == "sphere":
+            voxel_class = DirectSphere
+        else:
+            raise ValueError("Invalid shape argument.")
 
         # delete the voxel from the world if it already exists and has a differnt type than
         # the voxel to add at this place
@@ -84,7 +88,7 @@ class VoxelWorld:
                 side_length=self.grid_size,
                 appearance=appearance,
                 color=color,
-                **additional_properties
+                name=name,
             )
 
         # if a voxel with the same type already exists at this coordintate onyl the appearnce
@@ -94,6 +98,8 @@ class VoxelWorld:
                 voxel.appearance = appearance
             if color != voxel.color:
                 voxel.color = color
+            if name != voxel.name:
+                voxel.name = name
 
     def remove_voxel(self, coordinates: Tuple[int]):
         """Deletes the voxel at the passed game coordinate by calling its delte() method.
@@ -121,8 +127,8 @@ class VoxelWorld:
         # progress_dialog_delay=0,
     ) -> bool:
         """Updates the world according to the passed new_world_def. The new world def is a
-        {(x_game, y_game, z_game): add_voxel_params} dict. This means that the keys define
-        the position of the voxel while the values define the parameters passed to the
+        {(x_game, y_game, z_game): {"shape":shape, "color":(r,g,b,o), "appearance":appearance, "name":name}} dict.
+        This means that the keys define the position of the voxel while the values define the parameters passed to the
         add_voxel method.
         Voxels which are not present in the new_worls_def are deleted and for all voxels
         in the new_world_def the add_voxel method is called.
@@ -130,7 +136,7 @@ class VoxelWorld:
         Args:
             new_world_def (Dict[List, Dict]): The representation of the new world as as
             {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
-            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name "vox"}.
+            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
             progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
                 passed this is shown while adding the new voxels. Defaults to None.
 
@@ -194,13 +200,23 @@ class VoxelWorld:
         """
         return self._voxels.keys()
 
+    # def world_definition(self):
+    #     return {
+    #         coord: {**vox.serialize(), **{"voxel_class": vox.__class__}}
+    #         for coord, vox in self._voxels
+    #     }
+
+    # def rebuild(self):
+    #     self._voxels
+
     @property
     def grid_size(self):
         return self._grid_size
 
-    # @grid_size.setter
-    # def grid_size(self, new_grid_size):
-    #     self._grid_size = new_grid_size
+    @grid_size.setter
+    def grid_size(self, new_grid_size):
+        self._grid_size = new_grid_size
+        # TODO rebuild
 
     @property
     def component(self):
