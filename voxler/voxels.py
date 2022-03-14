@@ -32,9 +32,9 @@ class Voxel(ABC):
         """
         # these are the attributes which cant be changed after initialization
         self._comp = component
-        self._center = center
+        self._center = tuple(center)
         self._side_length = side_length
-        self._color = color
+        self._color = tuple(color)
         self._appearance = appearance
 
         # create the body
@@ -216,33 +216,41 @@ class DirectVoxel(Voxel):
 
     @name.setter
     def name(self, new_name):
-        self._name = new_name
-        self._body.name = new_name
+        if self._name != new_name:
+            self._name = new_name
+            self._body.name = new_name
 
     @Voxel.color.setter
     def color(self, new_color):
-        self._color = new_color
-        self._body.appearance = self._get_appearance()
+        new_color = tuple(new_color)
+        if self._color != new_color:
+            self._color = new_color
+            self._body.appearance = self._get_appearance()
 
     @Voxel.appearance.setter
-    def appearance(self, appearance_name):
-        self._appearance = appearance_name
-        self._body.appearance = self._get_appearance()
+    def appearance(self, new_appearance_name):
+        if new_appearance_name != self._appearance:
+            self._appearance = new_appearance_name
+            self._body.appearance = self._get_appearance()
 
     @Voxel.component.setter
     def component(self, new_component: adsk.fusion.Component):
-        self._component = new_component
-        self.recreate_body()
+        if new_component.id != self._component.id:
+            self._component = new_component
+            self.recreate_body()
 
     @Voxel.center.setter
     def center(self, new_center: Tuple[float]):
-        self._center = new_center
-        self.recreate_body()
+        new_center = tuple(new_center)
+        if self._center != new_center:
+            self._center = new_center
+            self.recreate_body()
 
     @Voxel.side_length.setter
     def side_length(self, new_side_length: float):
-        self._side_length = new_side_length
-        self.recreate_body()
+        if new_side_length != self._side_length:
+            self._side_length = new_side_length
+            self.recreate_body()
 
 
 class DirectCube(DirectVoxel):
