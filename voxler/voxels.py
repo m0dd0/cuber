@@ -171,6 +171,10 @@ class Voxel(ABC):
         self.delete()
         self._body = self._create_body()
 
+    # def change_multiple_properties(self, **kwargs):
+    #     for name, value in kwargs.items():
+    #         attr(self, name)
+
 
 class DirectVoxel(Voxel):
     def __init__(

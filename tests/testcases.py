@@ -1,8 +1,3 @@
-import traceback
-from collections import defaultdict
-from time import perf_counter
-from typing import List, Callable
-
 import adsk.core, adsk.fusion
 
 from .. import voxler as vox
@@ -11,33 +6,6 @@ app = adsk.core.Application.get()
 ui = app.userInterface
 design = adsk.fusion.Design.cast(app.activeProduct)
 root = design.rootComponent
-
-
-# TODO rewrite
-
-
-def execute_cases(cases: List[Callable]):
-    """Executes the passed functions in a controlled environment and logs some
-        data about their axacution.
-    Args:
-        cases (List[Callable]): A list of the testfuctions to execute.
-    Returns:
-        dict: A dictionairy with the test resulte mapped to the function name.
-    """
-    results = defaultdict(dict)
-    for case in cases:
-        try:
-            print(f"{f' {case.__name__} ':{'#'}^{60}}")
-            start = perf_counter()
-            case()
-            results[case.__name__]["elapsed_time"] = perf_counter() - start
-            results[case.__name__]["passed"] = True
-        except:
-            results[case.__name__]["elapsed_time"] = -1
-            results[case.__name__]["passed"] = False
-            print(traceback.format_exc())
-
-    return results
 
 
 def test_driect_cube_creation():
@@ -171,3 +139,13 @@ def test_clear():
         world.add_voxel((0, 0, i), "cube", (0, 0, 255, 255), "Oak")
 
     world.clear()
+
+
+ALL_CASES = [
+    test_driect_cube_creation,
+    test_direct_sphere_creation,
+    test_voxel_world_basic,
+    test_world_color_change,
+    test_world_update,
+    test_clear,
+]
