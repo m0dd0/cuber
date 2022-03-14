@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Dict, Any
 
 import adsk.fusion, adsk.core
 
@@ -124,6 +124,17 @@ class Voxel(ABC):
 
         Raises:
             NotImplementedError: _description_
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def serialize(self) -> Dict[str, Any]:
+        """Returns a serializable dict which represents the voxel.
+        All attributes are json serializable. The returned dict can be passed to the
+        passed to a constructor of the same VoxelClass to duplicate this voxel.
+
+        Returns:
+            Dict[str, Any]: The serialized version of this xovel instance.
         """
         raise NotImplementedError()
 
