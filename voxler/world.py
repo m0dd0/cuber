@@ -40,6 +40,16 @@ class VoxelWorld:
         self._voxels: Dict[Tuple[int], Voxel] = {}
 
     def get_real_center(self, game_coords: Tuple[int]) -> Tuple[float]:
+        """Calculates the actual coordinate of the center in Fusion for the given game_coord
+        w.r.t to the grid size and offset of the world.
+
+        Args:
+            game_coords (Tuple[int]): The game coordiante as (x,y,z) tuple for which the
+                real world coordinate is calculated.
+
+        Returns:
+            Tuple[float]: The real world coordinate as (x,y,z) tuple.
+        """
         return tuple(
             [(c + o) * self.grid_size for c, o in zip(game_coords, self._offset)]
         )
@@ -205,7 +215,18 @@ class VoxelWorld:
     def grid_size(self):
         return self._grid_size
 
-    def _rebuild_voxel(self, game_coord, voxel):
+    def _rebuild_voxel(self, game_coord: Tuple[int], voxel: Voxel) -> Voxel:
+        """Recreaes the given voxel with the same properties. For center and grid size
+        the values according to this worls instance are used.
+
+        Args:
+            game_coord (Tuple[int]): The game coordinate of the voxel to recreate.
+            voxel (Voxel): The voxel to recreate.
+
+        Returns:
+            Voxel: The recreatd / updated voxel.
+        """
+        # we do not simply use the setters as this would rebuild the body for every assignemnt
         new_voxel = voxel.__class__(
             self._component,
             self.get_real_center(game_coord),
@@ -218,6 +239,9 @@ class VoxelWorld:
         return new_voxel
 
     def _rebuild(self):
+        """Recreates all voxels in the world. This shoulf get executed when we change properties
+        like grid_size or offset as it invokes the (efficient) rebuilf of all voxels.
+        """
         self._voxels = {
             game_coord: self._rebuild_voxel(game_coord, voxel)
             for game_coord, voxel in self._voxels.items()
