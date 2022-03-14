@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from tkinter.messagebox import NO
 from typing import Tuple, Dict, Any
 
 import adsk.fusion, adsk.core
@@ -39,28 +40,40 @@ class Voxel(ABC):
         # create the body
         self._body = self._create_body()
 
-        # call the setter methods to apply the properties
-        self.appearance = self._appearance
-        self.color = self._color
-
     def delete(self) -> None:
         """Deletes the voxler instance. Same syntax for every subclass (DirectBodies and CustomGrphics)"""
         self._body.deleteMe()
+        self._body = None
 
     @property
     def component(self) -> adsk.fusion.Component:
         """The Fusion360 Component which owns this voxel."""
         return self._comp
 
+    @component.setter
+    @abstractmethod
+    def component(self, new_component: adsk.fusion.Component):
+        raise NotImplementedError()
+
     @property
     def center(self) -> Tuple[float]:
         """The center point of the voxel as (x,y,z) tuple in Fusions default coordinates."""
         return self._center
 
+    @center.setter
+    @abstractmethod
+    def center(self, new_center: Tuple[float]):
+        raise NotImplementedError()
+
     @property
     def side_length(self) -> float:
         """The side length of the voxel."""
         return self._side_length
+
+    @side_length.setter
+    @abstractmethod
+    def side_length(self, new_side_length: float):
+        raise NotImplementedError()
 
     @property
     def body(self) -> adsk.fusion.BRepBody:
@@ -72,10 +85,26 @@ class Voxel(ABC):
         """The name of the appearance as found in the Fuusion360 Material Library applied to the voxel."""
         return self._appearance
 
+    @appearance.setter
+    @abstractmethod
+    def appearance(self):
+        """Updates the appearance of the voxel by changing the actual apperance of the
+        body behind the voxel.
+        """
+        raise NotImplementedError()
+
     @property
     def color(self) -> Tuple[int]:
         """The color as (r,g,b,o) tuple which is used to modify the applied appearance."""
         return self._color
+
+    @color.setter
+    @abstractmethod
+    def color(self):
+        """Updates the color of the voxel by changing the actual apperance/color of the
+        body behind the voxel.
+        """
+        raise NotImplementedError()
 
     def _get_appearance(self) -> adsk.core.Appearance:
         """Utility method to get or create a (colored) appearance from the appearance and
@@ -127,32 +156,20 @@ class Voxel(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
-    def serialize(self) -> Dict[str, Any]:
-        """Returns a serializable dict which represents the voxel.
-        All attributes are json serializable. The returned dict can be passed to the
-        passed to a constructor of the same VoxelClass to duplicate this voxel.
+    # @abstractmethod
+    # def serialize(self) -> Dict[str, Any]:
+    #     """Returns a serializable dict which represents the voxel.
+    #     All attributes are json serializable. The returned dict can be passed to the
+    #     passed to a constructor of the same VoxelClass to duplicate this voxel.
 
-        Returns:
-            Dict[str, Any]: The serialized version of this xovel instance.
-        """
-        raise NotImplementedError()
+    #     Returns:
+    #         Dict[str, Any]: The serialized version of this xovel instance.
+    #     """
+    #     raise NotImplementedError()
 
-    @appearance.setter
-    @abstractmethod
-    def appearance(self):
-        """Updates the appearance of the voxel by changing the actual apperance of the
-        body behind the voxel.
-        """
-        raise NotImplementedError()
-
-    @color.setter
-    @abstractmethod
-    def color(self):
-        """Updates the color of the voxel by changing the actual apperance/color of the
-        body behind the voxel.
-        """
-        raise NotImplementedError()
+    def recreate_body(self):
+        self.delete()
+        self._body = self._create_body()
 
 
 class DirectVoxel(Voxel):
@@ -191,14 +208,7 @@ class DirectVoxel(Voxel):
 
         super().__init__(component, center, side_length, color, appearance)
 
-        # name is only supported by DirectVoxels, not for CGVoxesl and need to be
-        # applied via setter method
         self._name = name
-        self.name = self._name
-
-    def serialize(self) -> Dict[str, Any]:
-        # TODO
-        return super().serialize()
 
     @property
     def name(self):
@@ -218,6 +228,21 @@ class DirectVoxel(Voxel):
     def appearance(self, appearance_name):
         self._appearance = appearance_name
         self._body.appearance = self._get_appearance()
+
+    @Voxel.component.setter
+    def component(self, new_component: adsk.fusion.Component):
+        self._component = new_component
+        self.recreate_body()
+
+    @Voxel.center.setter
+    def center(self, new_center: Tuple[float]):
+        self._center = new_center
+        self.recreate_body()
+
+    @Voxel.side_length.setter
+    def side_length(self, new_side_length: float):
+        self._side_length = new_side_length
+        self.recreate_body()
 
 
 class DirectCube(DirectVoxel):
@@ -255,7 +280,7 @@ class DirectCube(DirectVoxel):
         Returns:
             adsk.fusion.BRepBody: The created BrepBody
         """
-        return self._comp.bRepBodies.add(
+        new_body = self._comp.bRepBodies.add(
             adsk.fusion.TemporaryBRepManager.get().createBox(
                 adsk.core.OrientedBoundingBox3D.create(
                     adsk.core.Point3D.create(*self._center),
@@ -267,6 +292,9 @@ class DirectCube(DirectVoxel):
                 )
             )
         )
+        new_body.appearance = self._get_appearance()
+        new_body.name = self._name
+        return new_body
 
 
 class DirectSphere(DirectVoxel):
@@ -304,92 +332,97 @@ class DirectSphere(DirectVoxel):
         Returns:
             adsk.fusion.BRepBody: The created BrepBody
         """
-        return self._comp.bRepBodies.add(
+        new_body = self._comp.bRepBodies.add(
             adsk.fusion.TemporaryBRepManager.get().createSphere(
                 adsk.core.Point3D.create(*self._center), self._side_length / 2
             )
         )
+        new_body.appearance = self._get_appearance()
+        new_body.name = self._name
+        return new_body
 
 
-class CGVoxel(Voxel):
-    def __init__(
-        self,
-        component,
-        center,
-        side_length,
-        color=(255, 0, 0, 255),
-        appearance=None,
-        cg_group_id="voxler",
-    ):
-        # find or create the custom grapohics group
-        # this needs to be set before callnig the parent constructor because
-        # the apretn contructor will call _create_body which depends on self._graphics
-        self._graphics = None
-        for cg_group in component.customGraphicsGroups:
-            if cg_group.id == cg_group_id:
-                self._graphics = cg_group
-        if self._graphics is None:
-            self._graphics = component.customGraphicsGroups.add()
-            self._graphics.id = cg_group_id
+# region
+# class CGVoxel(Voxel):
+#     def __init__(
+#         self,
+#         component,
+#         center,
+#         side_length,
+#         color=(255, 0, 0, 255),
+#         appearance=None,
+#         cg_group_id="voxler",
+#     ):
+#         # find or create the custom grapohics group
+#         # this needs to be set before callnig the parent constructor because
+#         # the apretn contructor will call _create_body which depends on self._graphics
+#         self._graphics = None
+#         for cg_group in component.customGraphicsGroups:
+#             if cg_group.id == cg_group_id:
+#                 self._graphics = cg_group
+#         if self._graphics is None:
+#             self._graphics = component.customGraphicsGroups.add()
+#             self._graphics.id = cg_group_id
 
-        super().__init__(component, center, side_length, color, appearance)
+#         super().__init__(component, center, side_length, color, appearance)
 
-    def _get_cg_appearannce(self):
-        if self.appearance is None:
-            if self.color is None:
-                return adsk.fusion.CustomGraphicsBasicMaterialColorEffect.create(
-                    adsk.core.Color.create(0, 0, 0, 255)
-                )
-            else:
-                return adsk.fusion.CustomGraphicsBasicMaterialColorEffect.create(
-                    adsk.core.Color.create(*self.color)
-                )
-        else:
-            return adsk.fusion.CustomGraphicsAppearanceColorEffect.create(
-                self._get_appearance()
-            )
+#     def _get_cg_appearannce(self):
+#         if self.appearance is None:
+#             if self.color is None:
+#                 return adsk.fusion.CustomGraphicsBasicMaterialColorEffect.create(
+#                     adsk.core.Color.create(0, 0, 0, 255)
+#                 )
+#             else:
+#                 return adsk.fusion.CustomGraphicsBasicMaterialColorEffect.create(
+#                     adsk.core.Color.create(*self.color)
+#                 )
+#         else:
+#             return adsk.fusion.CustomGraphicsAppearanceColorEffect.create(
+#                 self._get_appearance()
+#             )
 
-    def serialize(self) -> Dict[str, Any]:
-        # TODO
-        return super().serialize()
+#     def serialize(self) -> Dict[str, Any]:
+#         # TODO
+#         return super().serialize()
 
-    @Voxel.color.setter
-    def color(self, new_color):
-        self._color = new_color
-        self._body.color = self._get_cg_appearannce()
+#     @Voxel.color.setter
+#     def color(self, new_color):
+#         self._color = new_color
+#         self._body.color = self._get_cg_appearannce()
 
-    @Voxel.appearance.setter
-    def appearance(self, appearance_name):
-        self._appearance = appearance_name
-        self._body.color = self._get_cg_appearannce()
-
-
-class CGCube(CGVoxel):
-    # def __init__(self, component, center, side_length, color, appearance, cg_group_id):
-    #     super().__init__(component, center, side_length, color, appearance, cg_group_id)
-
-    def _create_body(self):
-        return self._graphics.addBRepBody(
-            adsk.fusion.TemporaryBRepManager.get().createBox(
-                adsk.core.OrientedBoundingBox3D.create(
-                    adsk.core.Point3D.create(*self._center),
-                    adsk.core.Vector3D.create(1, 0, 0),
-                    adsk.core.Vector3D.create(0, 1, 0),
-                    self._side_length,
-                    self._side_length,
-                    self._side_length,
-                )
-            )
-        )
+#     @Voxel.appearance.setter
+#     def appearance(self, appearance_name):
+#         self._appearance = appearance_name
+#         self._body.color = self._get_cg_appearannce()
 
 
-class CGSphere(CGVoxel):
-    # def __init__(self, component, center, side_length, color, appearance, cg_group_id):
-    #     super().__init__(component, center, side_length, color, appearance, cg_group_id)
+# class CGCube(CGVoxel):
+#     # def __init__(self, component, center, side_length, color, appearance, cg_group_id):
+#     #     super().__init__(component, center, side_length, color, appearance, cg_group_id)
 
-    def _create_body(self):
-        return self._graphics.addBRepBody(
-            adsk.fusion.TemporaryBRepManager.get().createSphere(
-                adsk.core.Point3D.create(*self._center), self._side_length / 2
-            )
-        )
+#     def _create_body(self):
+#         return self._graphics.addBRepBody(
+#             adsk.fusion.TemporaryBRepManager.get().createBox(
+#                 adsk.core.OrientedBoundingBox3D.create(
+#                     adsk.core.Point3D.create(*self._center),
+#                     adsk.core.Vector3D.create(1, 0, 0),
+#                     adsk.core.Vector3D.create(0, 1, 0),
+#                     self._side_length,
+#                     self._side_length,
+#                     self._side_length,
+#                 )
+#             )
+#         )
+
+
+# class CGSphere(CGVoxel):
+#     # def __init__(self, component, center, side_length, color, appearance, cg_group_id):
+#     #     super().__init__(component, center, side_length, color, appearance, cg_group_id)
+
+#     def _create_body(self):
+#         return self._graphics.addBRepBody(
+#             adsk.fusion.TemporaryBRepManager.get().createSphere(
+#                 adsk.core.Point3D.create(*self._center), self._side_length / 2
+#             )
+#         )
+# endregion
