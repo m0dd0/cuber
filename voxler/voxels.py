@@ -196,6 +196,10 @@ class DirectVoxel(Voxel):
         self._name = name
         self.name = self._name
 
+    def serialize(self) -> Dict[str, Any]:
+        # TODO
+        return super().serialize()
+
     @property
     def name(self):
         return self._name
@@ -344,6 +348,10 @@ class CGVoxel(Voxel):
             return adsk.fusion.CustomGraphicsAppearanceColorEffect.create(
                 self._get_appearance()
             )
+
+    def serialize(self) -> Dict[str, Any]:
+        # TODO
+        return super().serialize()
 
     @Voxel.color.setter
     def color(self, new_color):
