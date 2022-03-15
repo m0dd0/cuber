@@ -37,7 +37,22 @@ class VoxelWorld:
         self._offset = offset
 
         # {(x_game,y_game,z_game):Voxel} main dict representing/tracking all the voxels in the world
-        self._voxels = {}
+        self._voxels: Dict[Tuple[int], Voxel] = {}
+
+    def get_real_center(self, game_coords: Tuple[int]) -> Tuple[float]:
+        """Calculates the actual coordinate of the center in Fusion for the given game_coord
+        w.r.t to the grid size and offset of the world.
+
+        Args:
+            game_coords (Tuple[int]): The game coordiante as (x,y,z) tuple for which the
+                real world coordinate is calculated.
+
+        Returns:
+            Tuple[float]: The real world coordinate as (x,y,z) tuple.
+        """
+        return tuple(
+            [(c + o) * self.grid_size for c, o in zip(game_coords, self._offset)]
+        )
 
     def add_voxel(
         self,
@@ -82,9 +97,7 @@ class VoxelWorld:
         if coordinates not in self._voxels:
             self._voxels[coordinates] = voxel_class(
                 component=self._component,
-                center=[
-                    (c + o) * self.grid_size for c, o in zip(coordinates, self._offset)
-                ],
+                center=self.get_real_center(coordinates),
                 side_length=self.grid_size,
                 appearance=appearance,
                 color=color,
@@ -94,12 +107,10 @@ class VoxelWorld:
         # if a voxel with the same type already exists at this coordintate onyl the appearnce
         # and color are changed if they differ.
         else:
-            if appearance != voxel.appearance:
-                voxel.appearance = appearance
-            if color != voxel.color:
-                voxel.color = color
-            if name != voxel.name:
-                voxel.name = name
+            # applying equal attributes is prevented in setters of voxel class
+            voxel.appearance = appearance
+            voxel.color = color
+            voxel.name = name
 
     def remove_voxel(self, coordinates: Tuple[int]):
         """Deletes the voxel at the passed game coordinate by calling its delte() method.
@@ -200,23 +211,46 @@ class VoxelWorld:
         """
         return self._voxels.keys()
 
-    # def world_definition(self):
-    #     return {
-    #         coord: {**vox.serialize(), **{"voxel_class": vox.__class__}}
-    #         for coord, vox in self._voxels
-    #     }
-
-    # def rebuild(self):
-    #     self._voxels
-
     @property
     def grid_size(self):
         return self._grid_size
 
+    def _rebuild_voxel(self, game_coord: Tuple[int], voxel: Voxel) -> Voxel:
+        """Recreaes the given voxel with the same properties. For center and grid size
+        the values according to this worls instance are used.
+
+        Args:
+            game_coord (Tuple[int]): The game coordinate of the voxel to recreate.
+            voxel (Voxel): The voxel to recreate.
+
+        Returns:
+            Voxel: The recreatd / updated voxel.
+        """
+        # we do not simply use the setters as this would rebuild the body for every assignemnt
+        new_voxel = voxel.__class__(
+            self._component,
+            self.get_real_center(game_coord),
+            self._grid_size,
+            voxel.color,
+            voxel.appearance,
+            voxel.name,
+        )
+        voxel.delete()
+        return new_voxel
+
+    def _rebuild(self):
+        """Recreates all voxels in the world. This shoulf get executed when we change properties
+        like grid_size or offset as it invokes the (efficient) rebuilf of all voxels.
+        """
+        self._voxels = {
+            game_coord: self._rebuild_voxel(game_coord, voxel)
+            for game_coord, voxel in self._voxels.items()
+        }
+
     @grid_size.setter
     def grid_size(self, new_grid_size):
         self._grid_size = new_grid_size
-        # TODO rebuild
+        self._rebuild()
 
     @property
     def component(self):
