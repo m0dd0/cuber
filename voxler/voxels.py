@@ -31,10 +31,10 @@ class Voxel(ABC):
                 Can be changed after initialization. Setter method must be implemented by the subclass.
         """
         # these are the attributes which cant be changed after initialization
-        self._comp = component
+        self._component = component
         self._center = tuple(center)
         self._side_length = side_length
-        self._color = tuple(color)
+        self._color = tuple(color) if color is not None else None
         self._appearance = appearance
 
         # create the body
@@ -48,7 +48,7 @@ class Voxel(ABC):
     @property
     def component(self) -> adsk.fusion.Component:
         """The Fusion360 Component which owns this voxel."""
-        return self._comp
+        return self._component
 
     @component.setter
     @abstractmethod
@@ -122,8 +122,8 @@ class Voxel(ABC):
 
         if self._color is None:
             # no not use id since it is kept at creation of new custom apperance
-            appearace_des = design.appearances.itemByName(base_appearance.name)
-            return appearace_des
+            # appearace_des = design.appearances.itemByName(base_appearance.name)
+            return base_appearance  # appearace_des
 
         # create the name of the colored appearance
         r, g, b, o = self._color
@@ -210,9 +210,9 @@ class DirectVoxel(Voxel):
                 "A instance of a DirectVoxel can not be created in parameteric design environment."
             )
 
-        super().__init__(component, center, side_length, color, appearance)
-
         self._name = name
+
+        super().__init__(component, center, side_length, color, appearance)
 
     @property
     def name(self):
@@ -226,7 +226,7 @@ class DirectVoxel(Voxel):
 
     @Voxel.color.setter
     def color(self, new_color):
-        new_color = tuple(new_color)
+        new_color = tuple(new_color) if new_color is not None else None
         if self._color != new_color:
             self._color = new_color
             self._body.appearance = self._get_appearance()
@@ -292,7 +292,7 @@ class DirectCube(DirectVoxel):
         Returns:
             adsk.fusion.BRepBody: The created BrepBody
         """
-        new_body = self._comp.bRepBodies.add(
+        new_body = self._component.bRepBodies.add(
             adsk.fusion.TemporaryBRepManager.get().createBox(
                 adsk.core.OrientedBoundingBox3D.create(
                     adsk.core.Point3D.create(*self._center),
@@ -344,7 +344,7 @@ class DirectSphere(DirectVoxel):
         Returns:
             adsk.fusion.BRepBody: The created BrepBody
         """
-        new_body = self._comp.bRepBodies.add(
+        new_body = self._component.bRepBodies.add(
             adsk.fusion.TemporaryBRepManager.get().createSphere(
                 adsk.core.Point3D.create(*self._center), self._side_length / 2
             )

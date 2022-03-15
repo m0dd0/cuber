@@ -11,7 +11,7 @@ from .tests import testcases
 # if a single testfunction is testes the addin.stop method is called at leaving addin
 # if multiple testfunctions are provided we stop the addin immideately after the test
 # which created it got executed.
-TESTCASES = testcases.ALL_CASES
+# TESTCASES = testcases.ALL_CASES
 TESTCASES = [testcases.test_driect_cube_creation]
 
 
