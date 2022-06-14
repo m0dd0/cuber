@@ -247,10 +247,10 @@ class VoxelWorld:
             for game_coord, voxel in self._voxels.items()
         }
 
-    @grid_size.setter
-    def grid_size(self, new_grid_size):
-        self._grid_size = new_grid_size
-        self._rebuild()
+    # @grid_size.setter
+    # def grid_size(self, new_grid_size):
+    #     self._grid_size = new_grid_size
+    #     self._rebuild()
 
     @property
     def component(self):
@@ -259,3 +259,7 @@ class VoxelWorld:
     @property
     def offset(self):
         return self._offset
+
+    def set_grid_size(self, new_grid_size):
+        self._grid_size = new_grid_size
+        self._rebuild()
