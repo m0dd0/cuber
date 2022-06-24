@@ -131,10 +131,42 @@ class VoxelWorld:
 
         self._voxels.clear()
 
+    def _number_of_changes(self, world_def: Dict[Tuple, Dict]) -> int:
+        """Gets the number of voxels that must be changed or created in order to have the
+        passed world definition. (emoving voxels is very fast, therfore we do not account them as change)
+
+        Args:
+            world_def (Dict[Tuple, Dict]): The representation of the new world as as
+            {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
+            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
+
+        Returns:
+            int: The number of changes needed.
+        """
+        i = 0
+        for coord, voxel_def in world_def.items():
+            voxel = self._voxels.get(coord)
+
+            if (
+                not voxel
+                or voxel.shape != voxel_def["shape"]
+                or voxel.appearance != voxel_def["appearance"]
+                or voxel.color != voxel_def["color"]
+            ):
+                i += 1
+
+        # removing voxels is very fast, therfore we do not account them as change
+        # for coord in set(self.get_coordinates()):
+        #     if coord not in world_def.keys():
+        #         i += 1
+
+        return i
+
     def update(
         self,
-        new_world_def: Dict[List, Dict],
+        new_world_def: Dict[Tuple, Dict],
         progress_dialog: adsk.core.ProgressDialog = None,
+        changes_for_dialog: int = None
         # progress_dialog_delay=0,
     ) -> bool:
         """Updates the world according to the passed new_world_def. The new world def is a
@@ -145,11 +177,15 @@ class VoxelWorld:
         in the new_world_def the add_voxel method is called.
 
         Args:
-            new_world_def (Dict[List, Dict]): The representation of the new world as as
+            new_world_def (Dict[Tuple, Dict]): The representation of the new world as as
             {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
             {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
             progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
                 passed this is shown while adding the new voxels. Defaults to None.
+            changes_for_dialog (int, optional): The number of voxels that must be created
+                or changed in order to update the world until a progress_dialog is used. Gets ignored if
+                no progress_dialog has been passed. Defaults to None which means that the progess_dialog
+                is always used if given.
 
         Returns:
             bool: Whether the update was fully executed (can be aborted when giving progress_dialog).
@@ -161,9 +197,13 @@ class VoxelWorld:
 
         cancelled = False
 
-        if progress_dialog is None:
+        if progress_dialog is None or (
+            changes_for_dialog is not None
+            and self._number_of_changes(new_world_def) < changes_for_dialog
+        ):
             for coord, voxel_def in new_world_def.items():
                 self.add_voxel(coordinates=coord, **voxel_def)
+
         else:
             progress_dialog.show(
                 progress_dialog.title,
@@ -172,13 +212,41 @@ class VoxelWorld:
                 len(new_world_def),
                 # progress_dialog_delay,
             )
+
             for i, (coord, voxel_def) in enumerate(new_world_def.items()):
                 if progress_dialog.wasCancelled:
                     cancelled = True
                     break
+
                 self.add_voxel(coordinates=coord, **voxel_def)
+
                 progress_dialog.progressValue = i + 1
             progress_dialog.hide()
+
+        # use_dialog = progress_dialog is not None
+        # if use_dialog and changes_for_dialog is not None:
+        #     use_dialog = self._number_of_changes(new_world_def) >= changes_for_dialog
+
+        # if use_dialog:
+        #     progress_dialog.show(
+        #         progress_dialog.title,
+        #         progress_dialog.message,
+        #         0,
+        #         len(new_world_def),
+        #         # progress_dialog_delay,
+        #     )
+
+        # for i, (coord, voxel_def) in enumerate(new_world_def.items()):
+        #     if use_dialog:
+        #         if progress_dialog.wasCancelled:
+        #             cancelled = True
+        #             break
+        #         progress_dialog.progressValue = i + 1
+
+        #     self.add_voxel(coordinates=coord, **voxel_def)
+
+        # if use_dialog:
+        #     progress_dialog.hide()
 
         return not cancelled
 
@@ -238,14 +306,46 @@ class VoxelWorld:
         voxel.delete()
         return new_voxel
 
-    def _rebuild(self):
+    def _rebuild(self, progress_dialog: adsk.core.ProgressDialog = None) -> bool:
         """Recreates all voxels in the world. This shoulf get executed when we change properties
         like grid_size or offset as it invokes the (efficient) rebuilf of all voxels.
+
+        Args:
+            progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
+                passed this is shown while adding the new voxels. Defaults to None.
+
+        Returns:
+            bool: Whether the update was fully executed (can be aborted when giving progress_dialog).
         """
-        self._voxels = {
-            game_coord: self._rebuild_voxel(game_coord, voxel)
-            for game_coord, voxel in self._voxels.items()
-        }
+        cancelled = False
+
+        voxels = {}
+
+        if progress_dialog is None:
+            for game_coord, voxel in self._voxels.items():
+                voxels[game_coord] = self._rebuild_voxel(game_coord, voxel)
+
+        else:
+            progress_dialog.show(
+                progress_dialog.title,
+                progress_dialog.message,
+                0,
+                len(self.get_coordinates()),
+                # progress_dialog_delay,
+            )
+
+            for i, (game_coord, voxel) in enumerate(self._voxels.items()):
+                if progress_dialog.wasCancelled:
+                    cancelled = True
+                    break
+
+                voxels[game_coord] = self._rebuild_voxel(game_coord, voxel)
+
+                progress_dialog.progressValue = i + 1
+
+            progress_dialog.hide()
+
+        return not cancelled
 
     # @grid_size.setter
     # def grid_size(self, new_grid_size):
@@ -260,6 +360,21 @@ class VoxelWorld:
     def offset(self):
         return self._offset
 
-    def set_grid_size(self, new_grid_size):
+    def set_grid_size(
+        self, new_grid_size: int, progress_dialog: adsk.core.ProgressDialog = None
+    ) -> bool:
+        """Updates the voxel size attribute and rebuilds all voxels.
+
+        Args:
+            new_grid_size (int): The new grid size.
+            progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
+                passed this is shown while adding the new voxels. Defaults to None.
+
+        Returns:
+            bool: Whether the update was fully executed (can be aborted when giving progress_dialog).
+        """
+        if new_grid_size == self._grid_size:
+            return
+
         self._grid_size = new_grid_size
-        self._rebuild()
+        return self._rebuild(progress_dialog)
