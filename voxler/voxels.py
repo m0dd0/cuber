@@ -106,6 +106,11 @@ class Voxel(ABC):
         """
         raise NotImplementedError()
 
+    @property
+    def shape(self) -> str:
+        """The shape of this voxel. This is similar to the class iteself but easier for comparison in some cases."""
+        raise NotImplementedError()
+
     def _get_appearance(self) -> adsk.core.Appearance:
         """Utility method to get or create a (colored) appearance from the appearance and
         color attribute of the voxel.
@@ -308,6 +313,11 @@ class DirectCube(DirectVoxel):
         new_body.name = self._name
         return new_body
 
+    @property
+    def shape(self) -> str:
+        """Returns "cube"."""
+        return "cube"
+
 
 class DirectSphere(DirectVoxel):
     def __init__(
@@ -352,6 +362,11 @@ class DirectSphere(DirectVoxel):
         new_body.appearance = self._get_appearance()
         new_body.name = self._name
         return new_body
+
+    @property
+    def shape(self) -> str:
+        """Returns "sphere"."""
+        return "sphere"
 
 
 # region
