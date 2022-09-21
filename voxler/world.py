@@ -272,7 +272,7 @@ class VoxelWorld:
             Dict[str, Any]: The serialized world definition.
         """
         world_def = {}
-        for coord, voxel in self._voxels:
+        for coord, voxel in self._voxels.items():
             # we do not use the voxel.serailize() method as it might contain more attributes than needed
             world_def[coord] = {
                 "shape": voxel.shape,
