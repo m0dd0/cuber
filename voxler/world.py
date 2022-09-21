@@ -345,6 +345,8 @@ class VoxelWorld:
 
             progress_dialog.hide()
 
+        self._voxels = voxels
+
         return not cancelled
 
     # @grid_size.setter
