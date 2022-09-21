@@ -1,4 +1,5 @@
-from typing import List, Dict, Tuple
+import logging
+from typing import List, Dict, Tuple, Any
 
 import adsk.core, adsk.fusion
 
@@ -78,8 +79,6 @@ class VoxelWorld:
                 the voxel constructor. Defaults to "Steel - Satin".
             name (str, optional): The body name of the created voxel. Defaults to "voxel".
         """
-        voxel = self._voxels.get(coordinates)
-
         if shape == "cube":
             voxel_class = DirectCube
         elif shape == "sphere":
@@ -89,6 +88,7 @@ class VoxelWorld:
 
         # delete the voxel from the world if it already exists and has a differnt type than
         # the voxel to add at this place
+        voxel = self._voxels.get(coordinates)
         if voxel is not None and voxel.__class__ != voxel_class:
             voxel.delete()
             self._voxels.pop(coordinates)
@@ -112,24 +112,33 @@ class VoxelWorld:
             voxel.color = color
             voxel.name = name
 
-    def remove_voxel(self, coordinates: Tuple[int]):
+    def delete_voxel(self, coordinates: Tuple[int]):
         """Deletes the voxel at the passed game coordinate by calling its delte() method.
-        If there exists no voxel at the given position nothing happens..
+        If there exists no voxel at the given position nothing happens. The voxel might also have been
+        deleted already by an external processs. In this case the resulting error is logged and
 
         Args:
             coordinates (Tuple[int]): The position of the voxel in game coordinates.
         """
+        success = False
         voxel = self._voxels.get(coordinates)
         if voxel is not None:
-            voxel.delete()
+            try:
+                voxel.delete()
+                success = True
+            except RuntimeError as _:
+                logging.getLogger(__name__).warning(
+                    f"Could not delete voxel at {coordinates} succesfully."
+                )
             self._voxels.pop(coordinates)
+
+        return success
 
     def clear(self):
         """Removes and deletes all voxels currently present in the world."""
-        for voxel in self._voxels.values():
-            voxel.delete()
-
-        self._voxels.clear()
+        coords_to_delete = set(self._voxels.keys())
+        for coord in coords_to_delete:
+            self.delete_voxel(coord)
 
     def _number_of_changes(self, world_def: Dict[Tuple, Dict]) -> int:
         """Gets the number of voxels that must be changed or created in order to have the
@@ -179,7 +188,7 @@ class VoxelWorld:
         Args:
             new_world_def (Dict[Tuple, Dict]): The representation of the new world as as
             {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
-            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
+            {(0,0,0): {"shape": "cube", "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
             progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
                 passed this is shown while adding the new voxels. Defaults to None.
             changes_for_dialog (int, optional): The number of voxels that must be created
@@ -190,10 +199,9 @@ class VoxelWorld:
         Returns:
             bool: Whether the update was fully executed (can be aborted when giving progress_dialog).
         """
-        existing = self.get_coordinates()
-        for coord in set(existing):
-            if coord not in new_world_def.keys():
-                self.remove_voxel(coord)
+        coords_to_delete = set(self.get_coordinates()) - set(new_world_def.keys())
+        for coord in coords_to_delete:
+            self.delete_voxel(coord)
 
         cancelled = False
 
@@ -222,31 +230,6 @@ class VoxelWorld:
 
                 progress_dialog.progressValue = i + 1
             progress_dialog.hide()
-
-        # use_dialog = progress_dialog is not None
-        # if use_dialog and changes_for_dialog is not None:
-        #     use_dialog = self._number_of_changes(new_world_def) >= changes_for_dialog
-
-        # if use_dialog:
-        #     progress_dialog.show(
-        #         progress_dialog.title,
-        #         progress_dialog.message,
-        #         0,
-        #         len(new_world_def),
-        #         # progress_dialog_delay,
-        #     )
-
-        # for i, (coord, voxel_def) in enumerate(new_world_def.items()):
-        #     if use_dialog:
-        #         if progress_dialog.wasCancelled:
-        #             cancelled = True
-        #             break
-        #         progress_dialog.progressValue = i + 1
-
-        #     self.add_voxel(coordinates=coord, **voxel_def)
-
-        # if use_dialog:
-        #     progress_dialog.hide()
 
         return not cancelled
 
@@ -277,38 +260,35 @@ class VoxelWorld:
         Returns:
             List[Tuple[int]]: The list of game coorsintates of existing voxels in the game.
         """
-        return self._voxels.keys()
+        return list(self._voxels.keys())
+
+    def get_current_world_def(self) -> Dict[str, Any]:
+        """Returns the current world definition. The world definition contains a description of the properties
+        of each voxel but is independent of the world configuration like offset, component or grid_size.
+        I.e. it returns a dict in the form of:
+        {(x_game,y_game,z_game):{"shape": shape, "color": (r,g,b,o), "appearance": appearnce, "name": name}}
+
+        Returns:
+            Dict[str, Any]: The serialized world definition.
+        """
+        world_def = {}
+        for coord, voxel in self._voxels:
+            # we do not use the voxel.serailize() method as it might contain more attributes than needed
+            world_def[coord] = {
+                "shape": voxel.shape,
+                "color": voxel.color,
+                "appearance": voxel.appearance,
+                "name": voxel.name,
+            }
+        return world_def
 
     @property
     def grid_size(self):
         return self._grid_size
 
-    def _rebuild_voxel(self, game_coord: Tuple[int], voxel: Voxel) -> Voxel:
-        """Recreaes the given voxel with the same properties. For center and grid size
-        the values according to this worls instance are used.
-
-        Args:
-            game_coord (Tuple[int]): The game coordinate of the voxel to recreate.
-            voxel (Voxel): The voxel to recreate.
-
-        Returns:
-            Voxel: The recreatd / updated voxel.
-        """
-        # we do not simply use the setters as this would rebuild the body for every assignemnt
-        new_voxel = voxel.__class__(
-            self._component,
-            self.get_real_center(game_coord),
-            self._grid_size,
-            voxel.color,
-            voxel.appearance,
-            voxel.name,
-        )
-        voxel.delete()
-        return new_voxel
-
     def _rebuild(self, progress_dialog: adsk.core.ProgressDialog = None) -> bool:
-        """Recreates all voxels in the world. This shoulf get executed when we change properties
-        like grid_size or offset as it invokes the (efficient) rebuilf of all voxels.
+        """Recreates all voxels in the world with the current world definition and the (new) world configuration. 
+        This should get executed when we change properties like grid_size.
 
         Args:
             progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
@@ -317,42 +297,9 @@ class VoxelWorld:
         Returns:
             bool: Whether the update was fully executed (can be aborted when giving progress_dialog).
         """
-        cancelled = False
-
-        voxels = {}
-
-        if progress_dialog is None:
-            for game_coord, voxel in self._voxels.items():
-                voxels[game_coord] = self._rebuild_voxel(game_coord, voxel)
-
-        else:
-            progress_dialog.show(
-                progress_dialog.title,
-                progress_dialog.message,
-                0,
-                len(self.get_coordinates()),
-                # progress_dialog_delay,
-            )
-
-            for i, (game_coord, voxel) in enumerate(self._voxels.items()):
-                if progress_dialog.wasCancelled:
-                    cancelled = True
-                    break
-
-                voxels[game_coord] = self._rebuild_voxel(game_coord, voxel)
-
-                progress_dialog.progressValue = i + 1
-
-            progress_dialog.hide()
-
-        self._voxels = voxels
-
-        return not cancelled
-
-    # @grid_size.setter
-    # def grid_size(self, new_grid_size):
-    #     self._grid_size = new_grid_size
-    #     self._rebuild()
+        current_world_def = self.get_current_world_def()
+        self.clear()
+        return self.update(current_world_def, progress_dialog)
 
     @property
     def component(self):
