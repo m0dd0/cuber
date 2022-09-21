@@ -161,16 +161,22 @@ class Voxel(ABC):
         """
         raise NotImplementedError()
 
-    # @abstractmethod
-    # def serialize(self) -> Dict[str, Any]:
-    #     """Returns a serializable dict which represents the voxel.
-    #     All attributes are json serializable. The returned dict can be passed to the
-    #     passed to a constructor of the same VoxelClass to duplicate this voxel.
+    def serialize(self) -> Dict[str, Any]:
+        """Returns a serializable dict which represents the properties of the voxel.
+        All attributes are json serializable. Contains the attributes {component_name, center, side_length,
+        color, appearance, shape}
 
-    #     Returns:
-    #         Dict[str, Any]: The serialized version of this xovel instance.
-    #     """
-    #     raise NotImplementedError()
+        Returns:
+            Dict[str, Any]: The serialized version of this voxel instance.
+        """
+        return {
+            "component_name": self.component.name,
+            "center": self.center,
+            "side_length": self.side_length,
+            "color": self.color,
+            "appearance": self.appearance,
+            "shape": self.shape,
+        }
 
     def recreate_body(self):
         self.delete()
@@ -261,6 +267,15 @@ class DirectVoxel(Voxel):
             self._side_length = new_side_length
             self.recreate_body()
 
+    def serialize(self) -> Dict[str, Any]:
+        """Returns a serializable dict which represents the properties of the voxel.
+        All attributes are json serializable. Contains the attributes {component_name, name, center, side_length,
+        color, appearance, shape}
+
+        Returns:
+            Dict[str, Any]: The serialized version of this voxel instance.
+        """
+        return {**super().serialize(), "name": self.name}
 
 class DirectCube(DirectVoxel):
     def __init__(
