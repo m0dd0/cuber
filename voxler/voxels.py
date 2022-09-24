@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 from tkinter.messagebox import NO
 from typing import Tuple, Dict, Any
 
@@ -121,9 +122,21 @@ class Voxel(ABC):
         app = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(app.activeProduct)
 
-        base_appearance = app.materialLibraries.itemByName(
+        material_library = app.materialLibraries.itemByName(
             "Fusion 360 Appearance Library"
-        ).appearances.itemByName(self._appearance)
+        )
+        if material_library is None:
+            logging.getLogger(__name__).warning(
+                "The Fusion 360 Appearance Library is not available"
+            )
+            material_library = app.materialLibraries.item(0)
+
+        base_appearance = material_library.appearances.itemByName(self._appearance)
+        if base_appearance is None:
+            logging.getLogger(__name__).warning(
+                f"The apperance {self._appearance} is not available"
+            )
+            base_appearance = material_library.appearances.item(0)
 
         if self._color is None:
             # no not use id since it is kept at creation of new custom apperance
@@ -276,6 +289,7 @@ class DirectVoxel(Voxel):
             Dict[str, Any]: The serialized version of this voxel instance.
         """
         return {**super().serialize(), "name": self.name}
+
 
 class DirectCube(DirectVoxel):
     def __init__(
