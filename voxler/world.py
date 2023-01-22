@@ -60,7 +60,7 @@ class VoxelWorld:
         coordinates: Tuple[int],
         shape: str = "cube",
         color: Tuple[int] = None,
-        appearance: str = "Steel - Satin",
+        appearance: str = "Prism-256",
         name: str = "voxel",
     ):
         """Adds a (direct) voxel to the world at the given game coordinates. The properties
@@ -76,7 +76,7 @@ class VoxelWorld:
             color (Tuple[int], optional): The (r,g,b,o) tuple which gets passed to the
                 Voxel constructor. Defaults to None.
             appearance (str, optional): The name of the used appearance which gets passed to
-                the voxel constructor. Defaults to "Steel - Satin".
+                the voxel constructor. Defaults to "Prism-256".
             name (str, optional): The body name of the created voxel. Defaults to "voxel".
         """
         if shape == "cube":
@@ -147,7 +147,7 @@ class VoxelWorld:
         Args:
             world_def (Dict[Tuple, Dict]): The representation of the new world as as
             {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
-            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
+            {(0,0,0): {"voxel_class": DirectCube, "color": (255,0,0), "appearance": "Prism-256", name: "vox"}.
 
         Returns:
             int: The number of changes needed.
@@ -188,7 +188,7 @@ class VoxelWorld:
         Args:
             new_world_def (Dict[Tuple, Dict]): The representation of the new world as as
             {(x_game, y_game, z_game): add_voxel_params} dict. So e.g.
-            {(0,0,0): {"shape": "cube", "color": (255,0,0), "appearance": "Steel - Satin", name: "vox"}.
+            {(0,0,0): {"shape": "cube", "color": (255,0,0), "appearance": "Prism-256", name: "vox"}.
             progress_dialog (adsk.core.ProgressDialog, optional): If a progress dialog is
                 passed this is shown while adding the new voxels. Defaults to None.
             changes_for_dialog (int, optional): The number of voxels that must be created
@@ -287,7 +287,7 @@ class VoxelWorld:
         return self._grid_size
 
     def _rebuild(self, progress_dialog: adsk.core.ProgressDialog = None) -> bool:
-        """Recreates all voxels in the world with the current world definition and the (new) world configuration. 
+        """Recreates all voxels in the world with the current world definition and the (new) world configuration.
         This should get executed when we change properties like grid_size.
 
         Args:

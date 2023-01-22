@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-import logging
-from tkinter.messagebox import NO
 from typing import Tuple, Dict, Any
 
 import adsk.fusion, adsk.core
@@ -13,7 +11,7 @@ class Voxel(ABC):
         center: Tuple[int],
         side_length: float,
         color: Tuple[str] = None,
-        appearance: str = "Steel - Satin",
+        appearance: str = "Prism-256",
     ):
         """Abstract Base class for all voxels. Sets the attributes and calls the _createy_body()
         method of the implementing subclass.
@@ -27,8 +25,8 @@ class Voxel(ABC):
             color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
                 Defaults to the standard appearance. Can be changed after initialization.
                 Setter method must be implemented by the subclass.
-            appearance (str, optional): The appearance of the voxel as name of the appearance
-                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+            appearance (str, optional): The appearance of the voxel as ID of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Prism-256".
                 Can be changed after initialization. Setter method must be implemented by the subclass.
         """
         # these are the attributes which cant be changed after initialization
@@ -122,21 +120,12 @@ class Voxel(ABC):
         app = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(app.activeProduct)
 
-        material_library = app.materialLibraries.itemByName(
-            "Fusion 360 Appearance Library"
+        # gets the Fusion Material Library independent of the language
+        material_library = app.materialLibraries.itemById(
+            "BA5EE55E-9982-449B-9D66-9F036540E140"
         )
-        if material_library is None:
-            logging.getLogger(__name__).warning(
-                "The Fusion 360 Appearance Library is not available"
-            )
-            material_library = app.materialLibraries.item(0)
-
-        base_appearance = material_library.appearances.itemByName(self._appearance)
-        if base_appearance is None:
-            logging.getLogger(__name__).warning(
-                f"The apperance {self._appearance} is not available"
-            )
-            base_appearance = material_library.appearances.item(0)
+        base_appearance = material_library.appearances.itemById(self._appearance)
+        # base_appearance = material_library.appearances.itemByName(base_appearance.name)
 
         if self._color is None:
             # no not use id since it is kept at creation of new custom apperance
@@ -145,10 +134,7 @@ class Voxel(ABC):
 
         # create the name of the colored appearance
         r, g, b, o = self._color
-        custom_color_suffix = "__custom_"
-        colored_appearance_name = (
-            f"{self._appearance}{custom_color_suffix}r{r}g{g}b{b}o{o}"
-        )
+        colored_appearance_name = f"{self._appearance}__custom_r{r}g{g}b{b}o{o}"
 
         # create or get the colored appearance
         colored_appearance = design.appearances.itemByName(colored_appearance_name)
@@ -157,8 +143,8 @@ class Voxel(ABC):
                 base_appearance,
                 colored_appearance_name,
             )
-            colored_appearance.appearanceProperties.itemByName(
-                "Color"
+            colored_appearance.appearanceProperties.itemById(
+                "surface_albedo"
             ).value = adsk.core.Color.create(r, g, b, o)
 
         return colored_appearance
@@ -207,7 +193,7 @@ class DirectVoxel(Voxel):
         center: Tuple[int],
         side_length: float,
         color: Tuple[str] = None,
-        appearance: str = "Steel - Satin",
+        appearance: str = "Prism-256",
         name: str = "Voxel",
     ):
         """Abstract Base class for all voxels created as a direct brepbody with the TemporaryBrepManager.
@@ -222,8 +208,8 @@ class DirectVoxel(Voxel):
             color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
                 Defaults to the standard appearance. Can be changed after initialization.
                 Setter method must be implemented by the subclass.
-            appearance (str, optional): The appearance of the voxel as name of the appearance
-                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+            appearance (str, optional): The appearance of the voxel as ID of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Prism-256".
                 Can be changed after initialization. Setter method must be implemented by the subclass.
             name (str, optional): The name of the representing body in Fusion. Defaults to "voxel".
         """
@@ -298,7 +284,7 @@ class DirectCube(DirectVoxel):
         center: Tuple[int],
         side_length: float,
         color: Tuple[str] = None,
-        appearance: str = "Steel - Satin",
+        appearance: str = "Prism-256",
         name: str = "Cube",
     ):
         """Instantiabale class for which represents a cubic voxel created as a direct brepbody with the TemporaryBrepManager.
@@ -312,8 +298,8 @@ class DirectCube(DirectVoxel):
             color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
                 Defaults to the standard appearance. Can be changed after initialization.
                 Setter method must be implemented by the subclass.
-            appearance (str, optional): The appearance of the voxel as name of the appearance
-                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+            appearance (str, optional): The appearance of the voxel as ID of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Prism-256".
                 Can be changed after initialization. Setter method must be implemented by the subclass.
             name (str, optional): The name of the representing body in Fusion. Defaults to "cube".
         """
@@ -355,7 +341,7 @@ class DirectSphere(DirectVoxel):
         center: Tuple[int],
         side_length: float,
         color: Tuple[str] = None,
-        appearance: str = "Steel - Satin",
+        appearance: str = "Prism-256",
         name: str = "Sphere",
     ):
         """Instantiabale class for which represents a spheric voxel created as a direct brepbody with the TemporaryBrepManager.
@@ -369,8 +355,8 @@ class DirectSphere(DirectVoxel):
             color (Tuple[str], optional): Color of the voxel as (r,g,b,o) tuple (0 to 255).
                 Defaults to the standard appearance. Can be changed after initialization.
                 Setter method must be implemented by the subclass.
-            appearance (str, optional): The appearance of the voxel as name of the appearance
-                in "Fusion 360 Appearance Library". Defaults to "Steel - Satin".
+            appearance (str, optional): The appearance of the voxel as ID of the appearance
+                in "Fusion 360 Appearance Library". Defaults to "Prism-256".
                 Can be changed after initialization. Setter method must be implemented by the subclass.
             name (str, optional): The name of the representing body in Fusion. Defaults to "Sphere".
         """
